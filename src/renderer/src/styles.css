@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --color-canvas: 0.976 0.006 118;
+  --color-surface: 0.992 0.004 118;
+  --color-panel: 0.948 0.009 122;
+  --color-ink: 0.238 0.018 142;
+  --color-muted: 0.478 0.02 144;
+  --color-line: 0.872 0.012 132;
+  --color-accent: 0.47 0.104 173;
+  --color-accent-soft: 0.913 0.041 174;
+  --color-warning: 0.72 0.12 78;
+  --color-danger: 0.58 0.16 29;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: oklch(var(--color-canvas));
+  color: oklch(var(--color-ink));
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+}

@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "electron", "vitest/globals"]
+  },
+  "include": [
+    "electron.vite.config.ts",
+    "vitest.config.ts",
+    "tailwind.config.ts",
+    "src/main/**/*.ts",
+    "src/preload/**/*.ts",
+    "src/shared/**/*.ts",
+    "tests/**/*.ts"
+  ]
+}
