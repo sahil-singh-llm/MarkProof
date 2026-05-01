@@ -11,6 +11,7 @@ import type {
 
 import type { SqliteDatabase } from './database';
 import {
+  DESCRIPTION_MAX_LENGTH,
   normalizeNiceClass,
   normalizeSortOrder,
   requireIsoDate,
@@ -176,7 +177,7 @@ export class CasesRepository {
       id: input.id ?? randomUUID(),
       caseId: input.caseId,
       niceClass: normalizeNiceClass(input.niceClass),
-      description: requireNonEmpty(input.description, 'description'),
+      description: requireNonEmpty(input.description, 'description', DESCRIPTION_MAX_LENGTH),
       sortOrder: normalizeSortOrder(input.sortOrder),
       createdAt: now,
       updatedAt: now
@@ -220,7 +221,7 @@ export class CasesRepository {
     const record: GoodsService = {
       ...existing,
       niceClass: normalizeNiceClass(input.niceClass),
-      description: requireNonEmpty(input.description, 'description'),
+      description: requireNonEmpty(input.description, 'description', DESCRIPTION_MAX_LENGTH),
       sortOrder: normalizeSortOrder(input.sortOrder),
       updatedAt: this.now()
     };

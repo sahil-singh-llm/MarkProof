@@ -10,24 +10,56 @@ const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T/;
 const SHA_256_PATTERN = /^[a-f0-9]{64}$/;
 
-export function requireNonEmpty(value: string, fieldName: string): string {
+export const TEXT_FIELD_MAX_LENGTH = 1000;
+export const DESCRIPTION_MAX_LENGTH = 4000;
+export const LONG_TEXT_MAX_LENGTH = 200_000;
+
+export function requireNonEmpty(
+  value: string,
+  fieldName: string,
+  maxLength: number = TEXT_FIELD_MAX_LENGTH
+): string {
   const normalized = value.trim();
 
   if (normalized.length === 0) {
     throw new Error(`${fieldName} must not be empty.`);
   }
 
+  if (normalized.length > maxLength) {
+    throw new Error(`${fieldName} must be at most ${maxLength} characters.`);
+  }
+
   return normalized;
 }
 
-export function normalizeOptionalText(value: string | undefined): string {
-  return value?.trim() ?? '';
+export function normalizeOptionalText(
+  value: string | undefined,
+  maxLength: number = TEXT_FIELD_MAX_LENGTH
+): string {
+  const normalized = value?.trim() ?? '';
+
+  if (normalized.length > maxLength) {
+    throw new Error(`Value must be at most ${maxLength} characters.`);
+  }
+
+  return normalized;
 }
 
-export function normalizeNullableText(value: string | null | undefined): string | null {
+export function normalizeNullableText(
+  value: string | null | undefined,
+  maxLength: number = TEXT_FIELD_MAX_LENGTH
+): string | null {
   const normalized = value?.trim();
 
-  return normalized ? normalized : null;
+  if (!normalized) {
+    return null;
+  }
+
+  if (normalized.length > maxLength) {
+    throw new Error(`Value must be at most ${maxLength} characters.`);
+  }
+
+  return normalized;
 }
 
 export function requireIsoDate(value: string, fieldName: string): string {

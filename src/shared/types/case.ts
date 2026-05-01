@@ -43,6 +43,13 @@ export type GoodsService = {
   updatedAt: string;
 };
 
+export type GoodsServiceDraft = {
+  id?: string;
+  niceClass?: number | null;
+  description: string;
+  sortOrder?: number;
+};
+
 export type CreateGoodsServiceInput = {
   id?: string;
   caseId: string;
@@ -55,4 +62,21 @@ export type UpdateGoodsServiceInput = {
   niceClass?: number | null;
   description: string;
   sortOrder?: number;
+};
+
+export type TrademarkCaseRecord = {
+  trademarkCase: TrademarkCase;
+  goodsServices: GoodsService[];
+};
+
+export type CreateTrademarkCaseRecordInput = CreateTrademarkCaseInput & {
+  goodsServices: GoodsServiceDraft[];
+};
+
+export type UpdateTrademarkCaseRecordInput = UpdateTrademarkCaseInput & {
+  goodsServices: GoodsServiceDraft[];
+};
+
+export type DeleteTrademarkCaseResult = {
+  deleted: boolean;
 };

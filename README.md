@@ -146,4 +146,4 @@ Place screenshots and GIFs in `assets/screenshots/` as the UI develops.
 
 ## Current Status
 
-Step 1 and Step 2 are complete: Electron foundation, secure preload shape, packaging config, SQLite schema, migrations, and repository-level data access. Trademark case CRUD IPC/UI, evidence parsing, coverage, timeline, and PDF export are intentionally implemented in later steps.
+Step 1 through Step 3 are complete: Electron foundation, secure preload shape, packaging config, SQLite schema, migrations, repository-level data access, and Trademark Case CRUD through typed IPC with a React case workspace. Evidence parsing, coverage, timeline, and PDF export are intentionally implemented in later steps.

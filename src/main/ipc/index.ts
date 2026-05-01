@@ -1,5 +1,12 @@
 import { registerAppIpc } from './app.ipc';
+import { registerCasesIpc } from './cases.ipc';
+import type { CaseService } from '../services/case.service';
 
-export function registerIpcHandlers(): void {
+export type IpcServices = {
+  caseService: CaseService;
+};
+
+export function registerIpcHandlers(services: IpcServices): void {
   registerAppIpc();
+  registerCasesIpc(services.caseService);
 }

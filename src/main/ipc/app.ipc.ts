@@ -1,12 +1,14 @@
-import { app, ipcMain } from 'electron';
+import { app } from 'electron';
 
 import { LEGAL_DISCLAIMER } from '@shared/constants/disclaimer';
 import { EVIDENCE_HASH_ALGORITHM } from '@shared/constants/hash';
 import { IPC_CHANNELS } from '@shared/ipc/channels';
 import type { AppInfo } from '@shared/types/app';
 
+import { registerSafeHandle } from './safe-handler';
+
 export function registerAppIpc(): void {
-  ipcMain.handle(IPC_CHANNELS.app.getInfo, (): AppInfo => {
+  registerSafeHandle(IPC_CHANNELS.app.getInfo, (): AppInfo => {
     return {
       name: 'MarkProof',
       version: app.getVersion(),

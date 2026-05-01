@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 
 import { AppShell } from './components/AppShell';
+import { CasesPage } from './features/cases/CasesPage';
 import type { AppInfo } from '../../shared/types/app';
 
 type LoadState =
@@ -33,5 +34,14 @@ export function App(): ReactElement {
     };
   }, []);
 
-  return <AppShell appInfo={state.appInfo} isLoading={state.status === 'loading'} />;
+  return (
+    <AppShell
+      appInfo={state.appInfo}
+      eyebrow="Local workspace"
+      isLoading={state.status === 'loading'}
+      title="Trademark Cases"
+    >
+      <CasesPage appInfo={state.appInfo} />
+    </AppShell>
+  );
 }
