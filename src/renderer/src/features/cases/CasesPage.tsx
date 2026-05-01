@@ -171,6 +171,7 @@ export function CasesPage({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [anchorDate, setAnchorDate] = useState('');
 
   const markNameInputRef = useRef<HTMLInputElement>(null);
   const errorBannerRef = useRef<HTMLDivElement>(null);
@@ -223,8 +224,25 @@ export function CasesPage({
     setError(null);
     setNotice(null);
     setConfirmingDelete(false);
+    setAnchorDate('');
     setLastSyncedKey('create');
     markNameInputRef.current?.focus();
+  }
+
+  function applyAnchorWindow(): void {
+    if (anchorDate.length === 0) return;
+
+    const anchor = new Date(`${anchorDate}T00:00:00.000Z`);
+    if (Number.isNaN(anchor.getTime())) return;
+
+    const from = new Date(anchor);
+    from.setUTCFullYear(from.getUTCFullYear() - 5);
+
+    setDraft((current) => ({
+      ...current,
+      usePeriodFrom: from.toISOString().slice(0, 10),
+      usePeriodTo: anchor.toISOString().slice(0, 10)
+    }));
   }
 
   function selectRecord(record: TrademarkCaseRecord): void {
@@ -508,6 +526,39 @@ export function CasesPage({
                 ))}
               </select>
             </label>
+
+            <div className="rounded-md border border-line bg-panel px-3 py-3 md:col-span-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-muted">
+                Use period helper
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                Enter the publication date (DPMA opposition) or filing/priority date (EUIPO
+                opposition / cancellation) of the contested mark, then derive the 5-year window
+                ending on that date. Edit the From/To fields manually if a different anchor
+                applies.
+              </p>
+              <div className="mt-2 flex flex-wrap items-end gap-2">
+                <label className="block">
+                  <span className="text-xs font-medium text-muted">Anchor date</span>
+                  <input
+                    aria-label="Anchor date for use period"
+                    className="mt-1 rounded-md border border-line bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accentSoft"
+                    max={today}
+                    onChange={(event) => setAnchorDate(event.target.value)}
+                    type="date"
+                    value={anchorDate}
+                  />
+                </label>
+                <button
+                  className="rounded-md border border-line px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-surface hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-45"
+                  disabled={anchorDate.length === 0}
+                  onClick={applyAnchorWindow}
+                  type="button"
+                >
+                  Apply 5-year window
+                </button>
+              </div>
+            </div>
 
             <label className="block">
               <span className="text-sm font-medium">Use period from</span>

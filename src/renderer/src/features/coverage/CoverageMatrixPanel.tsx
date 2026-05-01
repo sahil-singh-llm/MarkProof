@@ -48,6 +48,42 @@ function cellLabel(cell: CoverageMatrixCell): string {
   return cell.status === 'coverage_detected' ? 'Evidence on file' : 'No evidence in period';
 }
 
+// Shape redundancy alongside the color cue, so cells remain distinguishable
+// for users with deuteranopia/protanopia where the warm/cool hues collapse.
+function CellStatusIcon({ status }: { status: CoverageMatrixCell['status'] }): ReactElement {
+  if (status === 'coverage_detected') {
+    return (
+      <svg
+        aria-hidden="true"
+        className="h-3.5 w-3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2.5}
+        viewBox="0 0 24 24"
+      >
+        <path d="M5 12.5l5 5L20 7" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-3.5 w-3.5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2.5}
+      viewBox="0 0 24 24"
+    >
+      <path d="M6 12h12" />
+    </svg>
+  );
+}
+
 export function CoverageMatrixPanel({
   record,
   refreshKey
@@ -259,7 +295,10 @@ export function CoverageMatrixPanel({
                               cell
                             )}`}
                           >
-                            <span className="text-base font-semibold">{cell.evidenceCount}</span>
+                            <div className="flex items-center gap-1.5">
+                              <CellStatusIcon status={cell.status} />
+                              <span className="text-base font-semibold">{cell.evidenceCount}</span>
+                            </div>
                             <span className="mt-0.5 text-[0.7rem] font-medium">
                               {cellLabel(cell)}
                             </span>
