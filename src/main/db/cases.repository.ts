@@ -266,10 +266,7 @@ export class CasesRepository {
       .map((row) => mapGoodsService(row as GoodsServiceRow));
   }
 
-  replaceGoodsServices(
-    caseId: string,
-    inputs: readonly GoodsServiceDraft[]
-  ): GoodsService[] {
+  replaceGoodsServices(caseId: string, inputs: readonly GoodsServiceDraft[]): GoodsService[] {
     const replace = this.db.transaction(() => {
       const existing = this.listGoodsServices(caseId);
       const existingIds = new Set(existing.map((item) => item.id));

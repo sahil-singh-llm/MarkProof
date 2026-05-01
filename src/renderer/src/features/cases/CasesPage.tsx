@@ -367,9 +367,7 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
     try {
       const result = await window.markProof.cases.delete(deletedId);
 
-      setRecords((current) =>
-        current.filter((record) => record.trademarkCase.id !== deletedId)
-      );
+      setRecords((current) => current.filter((record) => record.trademarkCase.id !== deletedId));
       setSelectedId(null);
       setDraft(createEmptyDraft());
       setMode('create');

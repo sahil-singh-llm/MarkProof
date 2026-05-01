@@ -183,9 +183,7 @@ describe('case service', () => {
 
     const updated = service.update(created.trademarkCase.id, {
       ...baseCaseInput(),
-      goodsServices: [
-        { id: keep.id, niceClass: keep.niceClass, description: keep.description }
-      ]
+      goodsServices: [{ id: keep.id, niceClass: keep.niceClass, description: keep.description }]
     });
 
     expect(updated?.goodsServices.map((item) => item.id)).toEqual([keep.id]);
