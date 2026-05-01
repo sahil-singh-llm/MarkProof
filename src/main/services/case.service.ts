@@ -9,14 +9,19 @@ import type {
 import { AuditRepository } from '../db/audit.repository';
 import { CasesRepository } from '../db/cases.repository';
 import type { SqliteDatabase } from '../db/database';
+import { EvidenceRepository } from '../db/evidence.repository';
+
+const MAX_AUDITED_DELETED_EVIDENCE_ITEMS = 100;
 
 export class CaseService {
   private readonly auditRepository: AuditRepository;
   private readonly casesRepository: CasesRepository;
+  private readonly evidenceRepository: EvidenceRepository;
 
   constructor(private readonly db: SqliteDatabase) {
     this.auditRepository = new AuditRepository(db);
     this.casesRepository = new CasesRepository(db);
+    this.evidenceRepository = new EvidenceRepository(db);
   }
 
   list(): TrademarkCaseRecord[] {
@@ -114,6 +119,7 @@ export class CaseService {
       }
 
       const goodsServicesCount = this.casesRepository.listGoodsServices(id).length;
+      const evidenceItems = this.evidenceRepository.listByCase(id);
       const deleted = this.casesRepository.delete(id);
 
       if (deleted) {
@@ -125,7 +131,16 @@ export class CaseService {
           details: {
             markName: existing.markName,
             registrationNumber: existing.registrationNumber,
-            goodsServicesCount
+            goodsServicesCount,
+            evidenceItemsCount: evidenceItems.length,
+            deletedEvidenceItems: evidenceItems
+              .slice(0, MAX_AUDITED_DELETED_EVIDENCE_ITEMS)
+              .map((evidence) => ({
+                id: evidence.id,
+                fileHash: evidence.fileHash
+              })),
+            deletedEvidenceItemsTruncated:
+              evidenceItems.length > MAX_AUDITED_DELETED_EVIDENCE_ITEMS
           }
         });
       }

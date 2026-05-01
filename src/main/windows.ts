@@ -1,11 +1,23 @@
-import { BrowserWindow, app, session } from 'electron';
-import { join } from 'node:path';
+import { BrowserWindow, app, protocol, session } from 'electron';
+import { readFile } from 'node:fs/promises';
+import { extname, join, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const LOCAL_DEV_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+const APP_PROTOCOL = 'markproof';
+const APP_HOST = 'app';
+const APP_ORIGIN = `${APP_PROTOCOL}://${APP_HOST}`;
 
 function getRendererIndexFileUrl(): string {
   return pathToFileURL(join(__dirname, '../renderer/index.html')).href;
+}
+
+function getRendererRoot(): string {
+  return resolve(__dirname, '../renderer');
+}
+
+function getRendererAppUrl(): string {
+  return `${APP_ORIGIN}/index.html`;
 }
 
 function getDevServerUrl(): string | undefined {
@@ -16,7 +28,7 @@ function getDevServerUrl(): string | undefined {
   return process.env.ELECTRON_RENDERER_URL;
 }
 
-function isAllowedRendererUrl(targetUrl: string): boolean {
+export function isAllowedRendererUrl(targetUrl: string): boolean {
   try {
     const parsedUrl = new URL(targetUrl);
 
@@ -24,6 +36,13 @@ function isAllowedRendererUrl(targetUrl: string): boolean {
       const expected = new URL(getRendererIndexFileUrl());
 
       return parsedUrl.href.toLowerCase() === expected.href.toLowerCase();
+    }
+
+    if (parsedUrl.protocol === `${APP_PROTOCOL}:`) {
+      return (
+        parsedUrl.hostname === APP_HOST &&
+        (parsedUrl.pathname === '/' || parsedUrl.pathname === '/index.html')
+      );
     }
 
     if (app.isPackaged) {
@@ -52,7 +71,6 @@ function isAllowedRendererUrl(targetUrl: string): boolean {
 function buildCspHeader(): string {
   const directives = [
     "default-src 'none'",
-    "script-src 'self'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self'",
@@ -63,13 +81,14 @@ function buildCspHeader(): string {
   ];
 
   if (app.isPackaged) {
+    directives.push("script-src 'self'");
     directives.push("connect-src 'self'");
   } else {
     directives.push(
-      "connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*"
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* http://127.0.0.1:*"
     );
     directives.push(
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' http://localhost:* http://127.0.0.1:*"
+      "connect-src 'self' http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*"
     );
   }
 
@@ -77,6 +96,92 @@ function buildCspHeader(): string {
 }
 
 let sessionConfigured = false;
+let appProtocolRegistered = false;
+let appProtocolHandlerRegistered = false;
+
+export function registerAppProtocol(): void {
+  if (appProtocolRegistered) {
+    return;
+  }
+
+  appProtocolRegistered = true;
+  protocol.registerSchemesAsPrivileged([
+    {
+      scheme: APP_PROTOCOL,
+      privileges: {
+        standard: true,
+        secure: true,
+        supportFetchAPI: true
+      }
+    }
+  ]);
+}
+
+function getContentType(filePath: string): string {
+  switch (extname(filePath).toLowerCase()) {
+    case '.html':
+      return 'text/html; charset=utf-8';
+    case '.js':
+      return 'text/javascript; charset=utf-8';
+    case '.css':
+      return 'text/css; charset=utf-8';
+    case '.svg':
+      return 'image/svg+xml';
+    case '.png':
+      return 'image/png';
+    case '.jpg':
+    case '.jpeg':
+      return 'image/jpeg';
+    case '.woff2':
+      return 'font/woff2';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
+function resolveRendererAssetPath(pathname: string): string {
+  const rendererRoot = getRendererRoot();
+  const relativePath = decodeURIComponent(pathname === '/' ? '/index.html' : pathname).replace(
+    /^\/+/,
+    ''
+  );
+  const resolved = resolve(rendererRoot, relativePath);
+
+  if (resolved !== rendererRoot && !resolved.startsWith(rendererRoot + sep)) {
+    throw new Error('Renderer asset path escapes the renderer directory.');
+  }
+
+  return resolved;
+}
+
+function registerAppProtocolHandler(): void {
+  if (appProtocolHandlerRegistered) {
+    return;
+  }
+
+  appProtocolHandlerRegistered = true;
+  protocol.handle(APP_PROTOCOL, async (request) => {
+    try {
+      const requestUrl = new URL(request.url);
+
+      if (requestUrl.hostname !== APP_HOST) {
+        return new Response('Not found.', { status: 404 });
+      }
+
+      const assetPath = resolveRendererAssetPath(requestUrl.pathname);
+      const body = await readFile(assetPath);
+
+      return new Response(new Uint8Array(body), {
+        headers: {
+          'Content-Type': getContentType(assetPath),
+          'Content-Security-Policy': buildCspHeader()
+        }
+      });
+    } catch {
+      return new Response('Not found.', { status: 404 });
+    }
+  });
+}
 
 export function configureDefaultSession(): void {
   if (sessionConfigured) {
@@ -84,6 +189,7 @@ export function configureDefaultSession(): void {
   }
 
   sessionConfigured = true;
+  registerAppProtocolHandler();
 
   const csp = buildCspHeader();
 
@@ -145,7 +251,7 @@ export async function createMainWindow(): Promise<BrowserWindow> {
   if (devServerUrl) {
     await mainWindow.loadURL(devServerUrl);
   } else {
-    await mainWindow.loadFile(join(__dirname, '../renderer/index.html'));
+    await mainWindow.loadURL(getRendererAppUrl());
   }
 
   return mainWindow;

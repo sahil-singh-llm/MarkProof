@@ -235,6 +235,7 @@ describe('case service', () => {
     db = createInMemoryDatabase();
     const service = new CaseService(db);
     const audit = new AuditRepository(db);
+    const evidence = new EvidenceRepository(db);
 
     const created = service.create({
       ...baseCaseInput(),
@@ -244,6 +245,15 @@ describe('case service', () => {
         { niceClass: 35, description: 'Advertising' }
       ]
     });
+    const evidenceItem = evidence.create({
+      caseId: created.trademarkCase.id,
+      evidenceType: 'photo',
+      sourceFilename: 'photo.jpg',
+      storedRelativePath: `cases/${created.trademarkCase.id}/evidence/${SHA_256}.jpg`,
+      fileHash: SHA_256,
+      fileSizeBytes: 2048,
+      extractedTextStatus: 'not_applicable'
+    });
 
     service.delete(created.trademarkCase.id);
 
@@ -252,11 +262,23 @@ describe('case service', () => {
       .find((entry) => entry.eventType === 'case_deleted');
 
     expect(deleteEntry?.details.goodsServicesCount).toBe(3);
+    expect(deleteEntry?.details.evidenceItemsCount).toBe(1);
+    expect(deleteEntry?.details.deletedEvidenceItems).toEqual([
+      {
+        id: evidenceItem.id,
+        fileHash: SHA_256
+      }
+    ]);
+    expect(deleteEntry?.details.deletedEvidenceItemsTruncated).toBe(false);
 
     const remainingGoodsServices = db
       .prepare('SELECT COUNT(*) as count FROM goods_services WHERE case_id = ?')
       .get(created.trademarkCase.id) as { count: number };
+    const remainingEvidenceItems = db
+      .prepare('SELECT COUNT(*) as count FROM evidence_items WHERE case_id = ?')
+      .get(created.trademarkCase.id) as { count: number };
 
     expect(remainingGoodsServices.count).toBe(0);
+    expect(remainingEvidenceItems.count).toBe(0);
   });
 });

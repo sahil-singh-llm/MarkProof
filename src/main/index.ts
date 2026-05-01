@@ -7,7 +7,7 @@ import { registerIpcHandlers } from './ipc';
 import { CaseService } from './services/case.service';
 import { EvidenceService } from './services/evidence.service';
 import { PdfBundleService } from './services/pdf-bundle.service';
-import { configureDefaultSession, createMainWindow } from './windows';
+import { configureDefaultSession, createMainWindow, registerAppProtocol } from './windows';
 
 let applicationDatabase: SqliteDatabase | null = null;
 
@@ -32,6 +32,7 @@ function registerAppLifecycle(): void {
 
 async function bootstrap(): Promise<void> {
   registerAppLifecycle();
+  registerAppProtocol();
 
   await app.whenReady();
   configureDefaultSession();
