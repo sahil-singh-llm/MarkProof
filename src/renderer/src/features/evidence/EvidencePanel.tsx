@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactElement } from 'react';
 
+import { CURRENCY_ENTRIES } from '../../../../shared/constants/currencies';
 import { EVIDENCE_TYPES } from '../../../../shared/types/evidence';
 import type {
   EvidenceDateCandidate,
@@ -10,6 +11,7 @@ import type {
   EvidenceType
 } from '../../../../shared/types/evidence';
 import type { TrademarkCaseRecord } from '../../../../shared/types/case';
+import { TerritorySelector } from '../../components/TerritorySelector';
 
 type EvidencePanelProps = {
   onEvidenceChanged?: () => void;
@@ -20,6 +22,11 @@ type ReviewDraft = {
   evidenceType: EvidenceType;
   dateOfUse: string;
   territory: string;
+  territories: string[];
+  markFormAsUsed: string;
+  useAmountValue: string;
+  useAmountCurrency: string;
+  useUnitsCount: string;
   coveredGoodsServiceIds: string[];
   notes: string;
 };
@@ -51,9 +58,38 @@ function draftFromRecord(record: EvidenceRecord): ReviewDraft {
     evidenceType: record.evidence.evidenceType,
     dateOfUse: record.evidence.dateOfUse ?? '',
     territory: record.evidence.territory,
+    territories: record.evidence.territories,
+    markFormAsUsed: record.evidence.markFormAsUsed,
+    useAmountValue:
+      record.evidence.useAmountValue === null ? '' : String(record.evidence.useAmountValue),
+    useAmountCurrency: record.evidence.useAmountCurrency ?? '',
+    useUnitsCount:
+      record.evidence.useUnitsCount === null ? '' : String(record.evidence.useUnitsCount),
     coveredGoodsServiceIds: record.goodsServiceLinks.map((link) => link.goodsServiceId),
     notes: record.evidence.notes
   };
+}
+
+function parseDecimalInput(value: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  // Accept comma as decimal separator (DE locale).
+  const normalized = trimmed.replace(',', '.');
+  const parsed = Number(normalized);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error('Use amount must be a non-negative number.');
+  }
+  return parsed;
+}
+
+function parseIntegerInput(value: string, fieldName: string): number | null {
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  const parsed = Number(trimmed);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(`${fieldName} must be a non-negative integer.`);
+  }
+  return parsed;
 }
 
 function formatFileSize(bytes: number): string {
@@ -283,11 +319,31 @@ export function EvidencePanel({ onEvidenceChanged, record }: EvidencePanelProps)
     setIsSaving(true);
     setMessage(null);
 
+    let parsedAmount: number | null;
+    let parsedUnits: number | null;
+    try {
+      parsedAmount = parseDecimalInput(draft.useAmountValue);
+      parsedUnits = parseIntegerInput(draft.useUnitsCount, 'Units sold');
+    } catch (parseError) {
+      setMessage({
+        tone: 'error',
+        text: parseError instanceof Error ? parseError.message : 'Invalid quantitative input.'
+      });
+      setIsSaving(false);
+      return;
+    }
+
     try {
       const updated = await window.markProof.evidence.update(selectedEvidence.evidence.id, {
         evidenceType: draft.evidenceType,
         dateOfUse: draft.dateOfUse.trim().length > 0 ? draft.dateOfUse : null,
         territory: draft.territory,
+        territories: draft.territories,
+        markFormAsUsed: draft.markFormAsUsed,
+        useAmountValue: parsedAmount,
+        useAmountCurrency:
+          draft.useAmountCurrency.trim().length > 0 ? draft.useAmountCurrency : null,
+        useUnitsCount: parsedUnits,
         coveredGoodsServiceIds: draft.coveredGoodsServiceIds,
         notes: draft.notes
       });
@@ -568,15 +624,101 @@ export function EvidencePanel({ onEvidenceChanged, record }: EvidencePanelProps)
                 </label>
 
                 <label className="block md:col-span-2">
-                  <span className="text-sm font-medium">Territory</span>
+                  <span className="text-sm font-medium">Mark as actually used</span>
+                  <input
+                    className="mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accentSoft"
+                    onChange={(event) => updateDraft('markFormAsUsed', event.target.value)}
+                    placeholder="Leave empty if identical to the registered form"
+                    type="text"
+                    value={draft.markFormAsUsed}
+                  />
+                  <span className="mt-1 block text-xs text-muted">
+                    If the mark on this evidence deviates from the registered form (§ 26 Abs. 3
+                    MarkenG / Art. 18(1)(a) EUTMR), describe what is shown.
+                  </span>
+                </label>
+              </div>
+
+              <section>
+                <h5 className="text-sm font-semibold">Territories</h5>
+                <p className="mt-1 text-xs text-muted">
+                  ISO 3166-1 alpha-2 codes covered by this piece of evidence. Aggregate one item
+                  may cover multiple territories — relevant for EU-wide use under C-149/11{' '}
+                  <em>Leno Merken</em>.
+                </p>
+                <div className="mt-2">
+                  <TerritorySelector
+                    onChange={(next) => updateDraft('territories', next)}
+                    selected={draft.territories}
+                  />
+                </div>
+                <label className="mt-3 block">
+                  <span className="text-xs font-medium uppercase tracking-[0.12em] text-muted">
+                    Territory notes
+                  </span>
                   <input
                     className="mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accentSoft"
                     onChange={(event) => updateDraft('territory', event.target.value)}
+                    placeholder="Free-text notes (e.g. distribution channel, region detail)"
                     type="text"
                     value={draft.territory}
                   />
                 </label>
-              </div>
+              </section>
+
+              <section>
+                <h5 className="text-sm font-semibold">Quantitative use</h5>
+                <p className="mt-1 text-xs text-muted">
+                  Optional. Genuine use under <em>Ansul</em> / <em>La Mer</em> turns on commercial
+                  scale — turnover or units. Leave blank where the evidence does not quantify.
+                </p>
+                <div className="mt-2 grid gap-3 md:grid-cols-[1fr_8rem_8rem]">
+                  <label className="block">
+                    <span className="text-xs font-medium uppercase tracking-[0.12em] text-muted">
+                      Use amount
+                    </span>
+                    <input
+                      className="mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accentSoft"
+                      inputMode="decimal"
+                      onChange={(event) => updateDraft('useAmountValue', event.target.value)}
+                      placeholder="0.00"
+                      type="text"
+                      value={draft.useAmountValue}
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium uppercase tracking-[0.12em] text-muted">
+                      Currency
+                    </span>
+                    <select
+                      className="mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accentSoft"
+                      onChange={(event) => updateDraft('useAmountCurrency', event.target.value)}
+                      value={draft.useAmountCurrency}
+                    >
+                      <option value="">—</option>
+                      {CURRENCY_ENTRIES.map((entry) => (
+                        <option key={entry.code} value={entry.code}>
+                          {entry.code}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-medium uppercase tracking-[0.12em] text-muted">
+                      Units sold
+                    </span>
+                    <input
+                      className="mt-1 w-full rounded-md border border-line bg-surface px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accentSoft"
+                      inputMode="numeric"
+                      min={0}
+                      onChange={(event) => updateDraft('useUnitsCount', event.target.value)}
+                      placeholder="0"
+                      type="number"
+                      value={draft.useUnitsCount}
+                    />
+                  </label>
+                </div>
+              </section>
 
               <section>
                 <h5 className="text-sm font-semibold">Candidate dates</h5>

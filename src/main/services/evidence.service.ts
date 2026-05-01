@@ -140,6 +140,17 @@ export class EvidenceService {
         evidenceType: input.evidenceType,
         dateOfUse: input.dateOfUse === undefined ? existing.dateOfUse : input.dateOfUse,
         territory: input.territory === undefined ? existing.territory : input.territory,
+        territories: input.territories === undefined ? existing.territories : input.territories,
+        markFormAsUsed:
+          input.markFormAsUsed === undefined ? existing.markFormAsUsed : input.markFormAsUsed,
+        useAmountValue:
+          input.useAmountValue === undefined ? existing.useAmountValue : input.useAmountValue,
+        useAmountCurrency:
+          input.useAmountCurrency === undefined
+            ? existing.useAmountCurrency
+            : input.useAmountCurrency,
+        useUnitsCount:
+          input.useUnitsCount === undefined ? existing.useUnitsCount : input.useUnitsCount,
         notes: input.notes === undefined ? existing.notes : input.notes
       });
 
@@ -164,6 +175,13 @@ export class EvidenceService {
           dateOfUse: updated.dateOfUse,
           previousTerritory: existing.territory,
           territory: updated.territory,
+          previousTerritoriesCount: existing.territories.length,
+          territoriesCount: updated.territories.length,
+          markFormAsUsedChanged: existing.markFormAsUsed !== updated.markFormAsUsed,
+          useAmountChanged:
+            existing.useAmountValue !== updated.useAmountValue ||
+            existing.useAmountCurrency !== updated.useAmountCurrency,
+          useUnitsCountChanged: existing.useUnitsCount !== updated.useUnitsCount,
           notesChanged: existing.notes !== updated.notes,
           coveredGoodsServicesChanged: goodsServiceIds !== undefined,
           previousCoveredGoodsServicesCount: previousGoodsServiceIds.length,

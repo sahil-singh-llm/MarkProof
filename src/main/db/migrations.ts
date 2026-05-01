@@ -31,6 +31,17 @@ export const MIGRATIONS: readonly Migration[] = [
     version: 2,
     name: 'jurisdiction_drop_uspto_add_wipo_madrid',
     apply: applyJurisdictionMigration
+  },
+  {
+    version: 3,
+    name: 'evidence_add_use_form_territories_quantitative',
+    sql: `
+      ALTER TABLE evidence_items ADD COLUMN territories_json TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE evidence_items ADD COLUMN mark_form_as_used TEXT NOT NULL DEFAULT '';
+      ALTER TABLE evidence_items ADD COLUMN use_amount_value REAL;
+      ALTER TABLE evidence_items ADD COLUMN use_amount_currency TEXT;
+      ALTER TABLE evidence_items ADD COLUMN use_units_count INTEGER;
+    `
   }
 ] as const;
 

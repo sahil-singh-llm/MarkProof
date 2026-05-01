@@ -55,34 +55,27 @@ export function App(): ReactElement {
       });
   }, []);
 
-  const loadCases = useCallback(async (preferredSelectedId?: string | null): Promise<void> => {
-    setIsLoadingCases(true);
-    setCasesError(null);
-
-    try {
-      const next = sortRecords(await window.markProof.cases.list());
-      if (!isMountedRef.current) return;
-
-      setRecords(next);
-      setSelectedCaseId((current) => {
-        const preferred = preferredSelectedId ?? current;
-        const preferredMatch = next.find((record) => record.trademarkCase.id === preferred);
-        return preferredMatch?.trademarkCase.id ?? next[0]?.trademarkCase.id ?? null;
-      });
-    } catch {
-      if (isMountedRef.current) {
-        setCasesError('Could not load trademark cases.');
-      }
-    } finally {
-      if (isMountedRef.current) {
-        setIsLoadingCases(false);
-      }
-    }
-  }, []);
-
   useEffect(() => {
-    void loadCases();
-  }, [loadCases]);
+    let cancelled = false;
+    void (async () => {
+      try {
+        const next = sortRecords(await window.markProof.cases.list());
+        if (cancelled) return;
+        setRecords(next);
+        setSelectedCaseId((current) => {
+          const preferredMatch = next.find((record) => record.trademarkCase.id === current);
+          return preferredMatch?.trademarkCase.id ?? next[0]?.trademarkCase.id ?? null;
+        });
+      } catch {
+        if (!cancelled) setCasesError('Could not load trademark cases.');
+      } finally {
+        if (!cancelled) setIsLoadingCases(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selectedRecord = useMemo(
     () => records.find((record) => record.trademarkCase.id === selectedCaseId) ?? null,

@@ -1,3 +1,11 @@
+import {
+  CURRENCY_CODE_PATTERN,
+  isWellFormedCurrencyCode
+} from '@shared/constants/currencies';
+import {
+  TERRITORY_CODE_PATTERN,
+  isWellFormedTerritoryCode
+} from '@shared/constants/territories';
 import { AUDIT_ENTITY_TYPES, AUDIT_EVENT_TYPES } from '@shared/types/audit';
 import { TRADEMARK_JURISDICTIONS } from '@shared/types/case';
 import {
@@ -182,4 +190,82 @@ export function requireAuditEventType(value: string) {
 
 export function requireAuditEntityType(value: string) {
   return requireKnownValue(value, AUDIT_ENTITY_TYPES, 'entityType');
+}
+
+export function normalizeTerritoryCodes(value: readonly string[] | undefined): string[] {
+  if (value === undefined) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const raw of value) {
+    if (typeof raw !== 'string') {
+      throw new Error('territories must be an array of strings.');
+    }
+
+    const code = raw.trim().toUpperCase();
+    if (!isWellFormedTerritoryCode(code)) {
+      throw new Error(
+        `territories must contain ISO 3166-1 alpha-2 codes; got "${raw}". Pattern: ${TERRITORY_CODE_PATTERN}.`
+      );
+    }
+    if (seen.has(code)) {
+      continue;
+    }
+    seen.add(code);
+    result.push(code);
+  }
+
+  return result;
+}
+
+export function normalizeNullableCurrencyCode(
+  value: string | null | undefined
+): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const code = trimmed.toUpperCase();
+  if (!isWellFormedCurrencyCode(code)) {
+    throw new Error(
+      `useAmountCurrency must be an ISO 4217 code; got "${value}". Pattern: ${CURRENCY_CODE_PATTERN}.`
+    );
+  }
+  return code;
+}
+
+export function normalizeNullableNonNegativeNumber(
+  value: number | null | undefined,
+  fieldName: string
+): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error(`${fieldName} must be a non-negative finite number.`);
+  }
+  return value;
+}
+
+export function normalizeNullableNonNegativeInteger(
+  value: number | null | undefined,
+  fieldName: string
+): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error(`${fieldName} must be a non-negative integer.`);
+  }
+  return value;
 }

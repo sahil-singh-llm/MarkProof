@@ -13,11 +13,15 @@ import type {
 import type { SqliteDatabase } from './database';
 import { parseJsonRecord, stringifyJsonRecord } from './json';
 import {
+  normalizeNullableCurrencyCode,
   normalizeNullableIsoDate,
   normalizeNullableIsoTimestamp,
+  normalizeNullableNonNegativeInteger,
+  normalizeNullableNonNegativeNumber,
   normalizeNullableText,
   normalizeOptionalText,
   normalizeSha256Hash,
+  normalizeTerritoryCodes,
   requireEvidenceDateCandidateSource,
   requireEvidenceTextExtractionStatus,
   requireEvidenceType,
@@ -38,6 +42,11 @@ type EvidenceItemRow = {
   mime_type: string | null;
   date_of_use: string | null;
   territory: string;
+  territories_json: string;
+  mark_form_as_used: string;
+  use_amount_value: number | null;
+  use_amount_currency: string | null;
+  use_units_count: number | null;
   notes: string;
   extracted_text: string | null;
   extracted_text_status: EvidenceItem['extractedTextStatus'];
@@ -48,6 +57,26 @@ type EvidenceItemRow = {
   created_at: string;
   updated_at: string;
 };
+
+function parseTerritoriesJson(value: string): string[] {
+  if (!value || value.trim().length === 0) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim().toUpperCase())
+      .filter((item) => /^[A-Z]{2}$/.test(item));
+  } catch {
+    return [];
+  }
+}
 
 type EvidenceDateCandidateRow = {
   id: string;
@@ -77,6 +106,11 @@ function mapEvidenceItem(row: EvidenceItemRow): EvidenceItem {
     mimeType: row.mime_type,
     dateOfUse: row.date_of_use,
     territory: row.territory,
+    territories: parseTerritoriesJson(row.territories_json),
+    markFormAsUsed: row.mark_form_as_used,
+    useAmountValue: row.use_amount_value,
+    useAmountCurrency: row.use_amount_currency,
+    useUnitsCount: row.use_units_count,
     notes: row.notes,
     extractedText: row.extracted_text,
     extractedTextStatus: row.extracted_text_status,
@@ -129,6 +163,11 @@ export class EvidenceRepository {
       mimeType: normalizeNullableText(input.mimeType),
       dateOfUse: normalizeNullableIsoDate(input.dateOfUse, 'dateOfUse'),
       territory: normalizeOptionalText(input.territory),
+      territoriesJson: JSON.stringify(normalizeTerritoryCodes(input.territories)),
+      markFormAsUsed: normalizeOptionalText(input.markFormAsUsed),
+      useAmountValue: normalizeNullableNonNegativeNumber(input.useAmountValue, 'useAmountValue'),
+      useAmountCurrency: normalizeNullableCurrencyCode(input.useAmountCurrency),
+      useUnitsCount: normalizeNullableNonNegativeInteger(input.useUnitsCount, 'useUnitsCount'),
       notes: normalizeOptionalText(input.notes),
       extractedText: input.extractedText ?? null,
       extractedTextStatus: requireEvidenceTextExtractionStatus(
@@ -161,6 +200,11 @@ export class EvidenceRepository {
             mime_type,
             date_of_use,
             territory,
+            territories_json,
+            mark_form_as_used,
+            use_amount_value,
+            use_amount_currency,
+            use_units_count,
             notes,
             extracted_text,
             extracted_text_status,
@@ -183,6 +227,11 @@ export class EvidenceRepository {
             @mimeType,
             @dateOfUse,
             @territory,
+            @territoriesJson,
+            @markFormAsUsed,
+            @useAmountValue,
+            @useAmountCurrency,
+            @useUnitsCount,
             @notes,
             @extractedText,
             @extractedTextStatus,
@@ -218,6 +267,27 @@ export class EvidenceRepository {
       evidenceType: requireEvidenceType(input.evidenceType),
       dateOfUse: normalizeNullableIsoDate(input.dateOfUse, 'dateOfUse'),
       territory: normalizeOptionalText(input.territory),
+      territoriesJson: JSON.stringify(
+        input.territories === undefined
+          ? existing.territories
+          : normalizeTerritoryCodes(input.territories)
+      ),
+      markFormAsUsed:
+        input.markFormAsUsed === undefined
+          ? existing.markFormAsUsed
+          : normalizeOptionalText(input.markFormAsUsed),
+      useAmountValue:
+        input.useAmountValue === undefined
+          ? existing.useAmountValue
+          : normalizeNullableNonNegativeNumber(input.useAmountValue, 'useAmountValue'),
+      useAmountCurrency:
+        input.useAmountCurrency === undefined
+          ? existing.useAmountCurrency
+          : normalizeNullableCurrencyCode(input.useAmountCurrency),
+      useUnitsCount:
+        input.useUnitsCount === undefined
+          ? existing.useUnitsCount
+          : normalizeNullableNonNegativeInteger(input.useUnitsCount, 'useUnitsCount'),
       notes: normalizeOptionalText(input.notes),
       extractedText:
         input.extractedText === undefined ? existing.extractedText : input.extractedText,
@@ -244,6 +314,11 @@ export class EvidenceRepository {
             evidence_type = @evidenceType,
             date_of_use = @dateOfUse,
             territory = @territory,
+            territories_json = @territoriesJson,
+            mark_form_as_used = @markFormAsUsed,
+            use_amount_value = @useAmountValue,
+            use_amount_currency = @useAmountCurrency,
+            use_units_count = @useUnitsCount,
             notes = @notes,
             extracted_text = @extractedText,
             extracted_text_status = @extractedTextStatus,

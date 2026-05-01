@@ -39,6 +39,62 @@ function readNullableDate(input: Record<string, unknown>, key: string): string |
   return value;
 }
 
+function readNullableString(
+  input: Record<string, unknown>,
+  key: string
+): string | null | undefined {
+  const value = input[key];
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value !== 'string') {
+    throw new Error(`${key} must be a string or null.`);
+  }
+
+  return value;
+}
+
+function readNullableNumber(
+  input: Record<string, unknown>,
+  key: string
+): number | null | undefined {
+  const value = input[key];
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value !== 'number') {
+    throw new Error(`${key} must be a number or null.`);
+  }
+
+  return value;
+}
+
+function readStringArray(input: Record<string, unknown>, key: string): string[] | undefined {
+  const value = input[key];
+
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
+    throw new Error(`${key} must be an array of strings.`);
+  }
+
+  return value as string[];
+}
+
 function readEvidenceType(input: Record<string, unknown>): EvidenceType {
   const value = input.evidenceType;
 
@@ -86,6 +142,11 @@ export function parseUpdateEvidenceReviewInput(value: unknown): UpdateEvidenceRe
 
   const dateOfUse = readNullableDate(value, 'dateOfUse');
   const territory = readOptionalString(value, 'territory');
+  const territories = readStringArray(value, 'territories');
+  const markFormAsUsed = readOptionalString(value, 'markFormAsUsed');
+  const useAmountValue = readNullableNumber(value, 'useAmountValue');
+  const useAmountCurrency = readNullableString(value, 'useAmountCurrency');
+  const useUnitsCount = readNullableNumber(value, 'useUnitsCount');
   const coveredGoodsServiceIds = readGoodsServiceIds(value);
   const notes = readOptionalString(value, 'notes');
   const input: UpdateEvidenceReviewInput = {
@@ -98,6 +159,26 @@ export function parseUpdateEvidenceReviewInput(value: unknown): UpdateEvidenceRe
 
   if (territory !== undefined) {
     input.territory = territory;
+  }
+
+  if (territories !== undefined) {
+    input.territories = territories;
+  }
+
+  if (markFormAsUsed !== undefined) {
+    input.markFormAsUsed = markFormAsUsed;
+  }
+
+  if (useAmountValue !== undefined) {
+    input.useAmountValue = useAmountValue;
+  }
+
+  if (useAmountCurrency !== undefined) {
+    input.useAmountCurrency = useAmountCurrency;
+  }
+
+  if (useUnitsCount !== undefined) {
+    input.useUnitsCount = useUnitsCount;
   }
 
   if (coveredGoodsServiceIds !== undefined) {

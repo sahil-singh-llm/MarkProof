@@ -145,6 +145,94 @@ describe('repositories', () => {
     ]);
   });
 
+  it('round-trips structured evidence fields (mark form, territories, quantitative use)', () => {
+    db = createInMemoryDatabase();
+    const cases = new CasesRepository(db, () => FIXED_TIME);
+    const evidence = new EvidenceRepository(db, () => FIXED_TIME);
+
+    cases.create({
+      id: 'case-1',
+      markName: 'MarkProof',
+      ownerName: 'Example GmbH',
+      registrationNumber: '302026000001',
+      jurisdiction: 'EUIPO',
+      usePeriodFrom: '2021-01-01',
+      usePeriodTo: '2026-01-01'
+    });
+
+    const created = evidence.create({
+      id: 'ev-1',
+      caseId: 'case-1',
+      evidenceType: 'invoice',
+      sourceFilename: 'invoice.pdf',
+      storedRelativePath: `cases/case-1/evidence/${SHA_256}.pdf`,
+      fileHash: SHA_256,
+      fileSizeBytes: 8192,
+      territories: ['de', 'AT', 'CH'],
+      markFormAsUsed: 'MarkProof v2 stylized',
+      useAmountValue: 12345.67,
+      useAmountCurrency: 'eur',
+      useUnitsCount: 240
+    });
+
+    expect(created.territories).toEqual(['DE', 'AT', 'CH']);
+    expect(created.markFormAsUsed).toBe('MarkProof v2 stylized');
+    expect(created.useAmountValue).toBe(12345.67);
+    expect(created.useAmountCurrency).toBe('EUR');
+    expect(created.useUnitsCount).toBe(240);
+
+    // Partial update — clearing the amount but keeping territories.
+    const updated = evidence.update('ev-1', {
+      evidenceType: 'invoice',
+      useAmountValue: null,
+      useAmountCurrency: null
+    });
+
+    expect(updated?.territories).toEqual(['DE', 'AT', 'CH']);
+    expect(updated?.markFormAsUsed).toBe('MarkProof v2 stylized');
+    expect(updated?.useAmountValue).toBeNull();
+    expect(updated?.useAmountCurrency).toBeNull();
+    expect(updated?.useUnitsCount).toBe(240);
+  });
+
+  it('rejects invalid ISO codes and negative quantitative values', () => {
+    db = createInMemoryDatabase();
+    const cases = new CasesRepository(db, () => FIXED_TIME);
+    const evidence = new EvidenceRepository(db, () => FIXED_TIME);
+
+    cases.create({
+      id: 'case-1',
+      markName: 'MarkProof',
+      ownerName: 'Example GmbH',
+      registrationNumber: '302026000001',
+      jurisdiction: 'EUIPO',
+      usePeriodFrom: '2021-01-01',
+      usePeriodTo: '2026-01-01'
+    });
+
+    const baseInput = {
+      caseId: 'case-1',
+      evidenceType: 'invoice' as const,
+      sourceFilename: 'invoice.pdf',
+      storedRelativePath: `cases/case-1/evidence/${SHA_256}.pdf`,
+      fileHash: SHA_256,
+      fileSizeBytes: 8192
+    };
+
+    expect(() => evidence.create({ ...baseInput, territories: ['DEU'] })).toThrow(
+      /ISO 3166-1 alpha-2/
+    );
+    expect(() =>
+      evidence.create({ ...baseInput, useAmountCurrency: 'DOLLAR' })
+    ).toThrow(/ISO 4217/);
+    expect(() => evidence.create({ ...baseInput, useAmountValue: -1 })).toThrow(
+      /useAmountValue/
+    );
+    expect(() => evidence.create({ ...baseInput, useUnitsCount: 1.5 })).toThrow(
+      /useUnitsCount/
+    );
+  });
+
   it('preserves extracted evidence metadata when review updates omit optional fields', () => {
     db = createInMemoryDatabase();
     const cases = new CasesRepository(db, () => FIXED_TIME);

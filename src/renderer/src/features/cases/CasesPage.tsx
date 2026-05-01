@@ -174,34 +174,26 @@ export function CasesPage({
 
   const markNameInputRef = useRef<HTMLInputElement>(null);
   const errorBannerRef = useRef<HTMLDivElement>(null);
-  const lastSyncedKey = useRef<string>('');
+  const [lastSyncedKey, setLastSyncedKey] = useState<string>('');
 
   const selectedRecord = useMemo(
     () => records.find((record) => record.trademarkCase.id === selectedCaseId) ?? null,
     [records, selectedCaseId]
   );
 
-  // Sync the local draft to whichever case the parent has selected. Keyed by
-  // case id (or 'create') so we don't clobber in-progress edits on every
-  // re-render — only when the selection actually changes.
-  useEffect(() => {
-    const key = selectedRecord?.trademarkCase.id ?? 'create';
-    if (key === lastSyncedKey.current) {
-      return;
-    }
-    lastSyncedKey.current = key;
-
-    if (selectedRecord) {
-      setDraft(draftFromRecord(selectedRecord));
-      setMode('edit');
-    } else {
-      setDraft(createEmptyDraft());
-      setMode('create');
-    }
+  // Sync the local draft to whichever case the parent has selected. Done
+  // during render (guarded by a key check) rather than in an effect so React
+  // can fold the derived state into the same commit instead of rendering
+  // twice. Only fires when the selection actually changes.
+  const selectionKey = selectedRecord?.trademarkCase.id ?? 'create';
+  if (selectionKey !== lastSyncedKey) {
+    setLastSyncedKey(selectionKey);
+    setDraft(selectedRecord ? draftFromRecord(selectedRecord) : createEmptyDraft());
+    setMode(selectedRecord ? 'edit' : 'create');
     setError(null);
     setNotice(null);
     setConfirmingDelete(false);
-  }, [selectedRecord]);
+  }
 
   useEffect(() => {
     if (!confirmingDelete) return;
@@ -231,7 +223,7 @@ export function CasesPage({
     setError(null);
     setNotice(null);
     setConfirmingDelete(false);
-    lastSyncedKey.current = 'create';
+    setLastSyncedKey('create');
     markNameInputRef.current?.focus();
   }
 
@@ -309,7 +301,7 @@ export function CasesPage({
         return;
       }
 
-      lastSyncedKey.current = saved.trademarkCase.id;
+      setLastSyncedKey(saved.trademarkCase.id);
       setDraft(draftFromRecord(saved));
       setMode('edit');
       setNotice(mode === 'create' ? 'Case created.' : 'Case updated.');

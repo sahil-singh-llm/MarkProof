@@ -42,6 +42,11 @@ export type EvidenceItem = {
   mimeType: string | null;
   dateOfUse: string | null;
   territory: string;
+  territories: string[];
+  markFormAsUsed: string;
+  useAmountValue: number | null;
+  useAmountCurrency: string | null;
+  useUnitsCount: number | null;
   notes: string;
   extractedText: string | null;
   extractedTextStatus: EvidenceTextExtractionStatus;
@@ -65,6 +70,11 @@ export type CreateEvidenceItemInput = {
   mimeType?: string | null;
   dateOfUse?: string | null;
   territory?: string;
+  territories?: readonly string[];
+  markFormAsUsed?: string;
+  useAmountValue?: number | null;
+  useAmountCurrency?: string | null;
+  useUnitsCount?: number | null;
   notes?: string;
   extractedText?: string | null;
   extractedTextStatus?: EvidenceTextExtractionStatus;
@@ -78,6 +88,11 @@ export type UpdateEvidenceItemInput = {
   evidenceType: EvidenceType;
   dateOfUse?: string | null;
   territory?: string;
+  territories?: readonly string[];
+  markFormAsUsed?: string;
+  useAmountValue?: number | null;
+  useAmountCurrency?: string | null;
+  useUnitsCount?: number | null;
   notes?: string;
   extractedText?: string | null;
   extractedTextStatus?: EvidenceTextExtractionStatus;
@@ -148,6 +163,11 @@ export type UpdateEvidenceReviewInput = {
   evidenceType: EvidenceType;
   dateOfUse?: string | null;
   territory?: string;
+  territories?: readonly string[];
+  markFormAsUsed?: string;
+  useAmountValue?: number | null;
+  useAmountCurrency?: string | null;
+  useUnitsCount?: number | null;
   coveredGoodsServiceIds?: string[];
   notes?: string;
 };

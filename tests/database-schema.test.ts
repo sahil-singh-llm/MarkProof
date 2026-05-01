@@ -150,6 +150,31 @@ describe('database schema', () => {
         FOREIGN KEY (case_id) REFERENCES trademark_cases(id) ON DELETE CASCADE
       );
 
+      -- Minimal v1-era evidence table so migration v3 has something to ALTER.
+      CREATE TABLE evidence_items (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        evidence_type TEXT NOT NULL,
+        source_filename TEXT NOT NULL,
+        stored_relative_path TEXT NOT NULL,
+        file_hash TEXT NOT NULL,
+        hash_algo TEXT NOT NULL DEFAULT 'sha256',
+        file_size_bytes INTEGER NOT NULL,
+        mime_type TEXT,
+        date_of_use TEXT,
+        territory TEXT NOT NULL DEFAULT '',
+        notes TEXT NOT NULL DEFAULT '',
+        extracted_text TEXT,
+        extracted_text_status TEXT NOT NULL DEFAULT 'pending',
+        exif_json TEXT NOT NULL DEFAULT '{}',
+        file_created_at TEXT,
+        file_modified_at TEXT,
+        imported_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (case_id) REFERENCES trademark_cases(id) ON DELETE CASCADE
+      );
+
       INSERT INTO schema_migrations (version, name, applied_at)
       VALUES (1, 'initial_schema', '2026-01-01T00:00:00.000Z');
 
@@ -186,7 +211,20 @@ describe('database schema', () => {
 
     expect(migratedCase.jurisdiction).toBe('OTHER');
     expect(goodsServiceForeignKeys.map((row) => row.table)).toEqual(['trademark_cases']);
-    expect(migrationVersions.map((row) => row.version)).toEqual([1, 2]);
+    expect(migrationVersions.map((row) => row.version)).toEqual([1, 2, 3]);
+
+    const evidenceColumns = (
+      db.prepare('PRAGMA table_info(evidence_items)').all() as { name: string }[]
+    ).map((row) => row.name);
+    expect(evidenceColumns).toEqual(
+      expect.arrayContaining([
+        'territories_json',
+        'mark_form_as_used',
+        'use_amount_value',
+        'use_amount_currency',
+        'use_units_count'
+      ])
+    );
 
     db.prepare('DELETE FROM trademark_cases WHERE id = ?').run('case-1');
 
