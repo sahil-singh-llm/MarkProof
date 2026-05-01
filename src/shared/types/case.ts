@@ -1,4 +1,4 @@
-export const TRADEMARK_JURISDICTIONS = ['DPMA', 'EUIPO', 'USPTO', 'OTHER'] as const;
+export const TRADEMARK_JURISDICTIONS = ['DPMA', 'EUIPO', 'WIPO_MADRID', 'OTHER'] as const;
 
 export type TrademarkJurisdiction = (typeof TRADEMARK_JURISDICTIONS)[number];
 

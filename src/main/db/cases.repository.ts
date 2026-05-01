@@ -131,7 +131,7 @@ export class CasesRepository {
       updatedAt: this.now()
     };
 
-    this.db
+    const result = this.db
       .prepare(
         `
           UPDATE trademark_cases
@@ -147,6 +147,10 @@ export class CasesRepository {
         `
       )
       .run(record);
+
+    if (result.changes === 0) {
+      return null;
+    }
 
     return record;
   }
@@ -273,9 +277,15 @@ export class CasesRepository {
       const retainedIds = new Set<string>();
 
       for (const input of inputs) {
-        if (input.id !== undefined && existingIds.has(input.id)) {
-          retainedIds.add(input.id);
+        if (input.id === undefined) {
+          continue;
         }
+
+        if (!existingIds.has(input.id)) {
+          throw new Error(`Goods service ${input.id} does not belong to case ${caseId}.`);
+        }
+
+        retainedIds.add(input.id);
       }
 
       for (const item of existing) {

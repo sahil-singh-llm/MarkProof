@@ -45,7 +45,7 @@ function cellClass(cell: CoverageMatrixCell): string {
 }
 
 function cellLabel(cell: CoverageMatrixCell): string {
-  return cell.status === 'coverage_detected' ? 'Coverage detected' : 'Gap detected';
+  return cell.status === 'coverage_detected' ? 'Evidence on file' : 'No evidence in period';
 }
 
 export function CoverageMatrixPanel({
@@ -180,7 +180,7 @@ export function CoverageMatrixPanel({
             <div className="grid gap-3 md:grid-cols-3">
               <div className="rounded-md border border-line bg-panel px-4 py-3">
                 <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted">
-                  Coverage detected
+                  Periods with evidence
                 </p>
                 <p className="mt-1 text-sm font-semibold">
                   {matrix.totals.coveredCells} of {totalCells} cells
@@ -188,7 +188,7 @@ export function CoverageMatrixPanel({
               </div>
               <div className="rounded-md border border-line bg-panel px-4 py-3">
                 <p className="text-xs font-medium uppercase tracking-[0.12em] text-muted">
-                  Gap detected
+                  Periods without evidence
                 </p>
                 <p className="mt-1 text-sm font-semibold">{matrix.totals.gapCells} cells</p>
               </div>
@@ -236,7 +236,10 @@ export function CoverageMatrixPanel({
                             {row.goodsService.description}
                           </p>
                           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
-                            <span>{row.totalEvidenceCount} mapped count</span>
+                            <span>
+                              {row.totalEvidenceCount} evidence item
+                              {row.totalEvidenceCount === 1 ? '' : 's'} mapped
+                            </span>
                             {row.reviewRecommendedEvidenceIds.length > 0 && (
                               <span className="rounded-full border border-warning/45 bg-[oklch(0.965_0.035_82)] px-2 py-0.5 text-ink">
                                 Review recommended

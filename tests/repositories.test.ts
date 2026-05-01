@@ -44,6 +44,43 @@ describe('repositories', () => {
     expect(cases.listGoodsServices('case-1')).toEqual([goodsService]);
   });
 
+  it('returns null when an update statement affects no rows after the row was read', () => {
+    db = createInMemoryDatabase();
+    const cases = new CasesRepository(db, () => FIXED_TIME);
+
+    const trademarkCase = cases.create({
+      id: 'case-1',
+      markName: 'MarkProof',
+      ownerName: 'Example GmbH',
+      registrationNumber: '302026000001',
+      jurisdiction: 'DPMA',
+      usePeriodFrom: '2021-01-01',
+      usePeriodTo: '2026-01-01'
+    });
+
+    db.prepare(
+      `
+        CREATE TRIGGER ignore_trademark_case_update
+        BEFORE UPDATE ON trademark_cases
+        BEGIN
+          SELECT RAISE(IGNORE);
+        END
+      `
+    ).run();
+
+    const updated = cases.update(trademarkCase.id, {
+      markName: 'Renamed',
+      ownerName: 'Example GmbH',
+      registrationNumber: '302026000001',
+      jurisdiction: 'DPMA',
+      usePeriodFrom: '2021-01-01',
+      usePeriodTo: '2026-01-01'
+    });
+
+    expect(updated).toBeNull();
+    expect(cases.getById(trademarkCase.id)).toEqual(trademarkCase);
+  });
+
   it('persists evidence metadata, candidate dates, and goods/services mappings', () => {
     db = createInMemoryDatabase();
     const cases = new CasesRepository(db, () => FIXED_TIME);

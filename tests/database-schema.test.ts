@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import Database from 'better-sqlite3';
 
 import type { SqliteDatabase } from '../src/main/db/database';
-import { createInMemoryDatabase } from '../src/main/db/database';
+import { configureDatabase, createInMemoryDatabase } from '../src/main/db/database';
+import { applyMigrations } from '../src/main/db/migrations';
 
 type TableRow = {
   name: string;
@@ -11,9 +13,21 @@ type ForeignKeysRow = {
   foreign_keys: number;
 };
 
+type ForeignKeyListRow = {
+  table: string;
+};
+
 type TableInfoRow = {
   name: string;
   dflt_value: string | null;
+};
+
+type TrademarkCaseJurisdictionRow = {
+  jurisdiction: string;
+};
+
+type MigrationVersionRow = {
+  version: number;
 };
 
 describe('database schema', () => {
@@ -99,5 +113,87 @@ describe('database schema', () => {
       .get('case-1') as { count: number };
 
     expect(remaining.count).toBe(0);
+  });
+
+  it('migrates existing jurisdiction data without rewriting child foreign keys', () => {
+    db = new Database(':memory:');
+    configureDatabase(db);
+
+    db.exec(`
+      CREATE TABLE schema_migrations (
+        version INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        applied_at TEXT NOT NULL
+      );
+
+      CREATE TABLE trademark_cases (
+        id TEXT PRIMARY KEY,
+        mark_name TEXT NOT NULL CHECK (length(trim(mark_name)) > 0),
+        owner_name TEXT NOT NULL CHECK (length(trim(owner_name)) > 0),
+        registration_number TEXT NOT NULL CHECK (length(trim(registration_number)) > 0),
+        jurisdiction TEXT NOT NULL CHECK (jurisdiction IN ('DPMA', 'EUIPO', 'USPTO', 'OTHER')),
+        use_period_from TEXT NOT NULL CHECK (length(use_period_from) = 10),
+        use_period_to TEXT NOT NULL CHECK (length(use_period_to) = 10),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        CHECK (use_period_from <= use_period_to)
+      );
+
+      CREATE TABLE goods_services (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL,
+        nice_class INTEGER CHECK (nice_class IS NULL OR (nice_class BETWEEN 1 AND 45)),
+        description TEXT NOT NULL CHECK (length(trim(description)) > 0),
+        sort_order INTEGER NOT NULL DEFAULT 0 CHECK (sort_order >= 0),
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (case_id) REFERENCES trademark_cases(id) ON DELETE CASCADE
+      );
+
+      INSERT INTO schema_migrations (version, name, applied_at)
+      VALUES (1, 'initial_schema', '2026-01-01T00:00:00.000Z');
+
+      INSERT INTO trademark_cases (
+        id, mark_name, owner_name, registration_number, jurisdiction,
+        use_period_from, use_period_to, created_at, updated_at
+      )
+      VALUES (
+        'case-1', 'MarkProof', 'Example GmbH', 'REG-1', 'USPTO',
+        '2021-01-01', '2026-01-01',
+        '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
+      );
+
+      INSERT INTO goods_services (
+        id, case_id, nice_class, description, sort_order, created_at, updated_at
+      )
+      VALUES (
+        'gs-1', 'case-1', 9, 'Software', 0,
+        '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
+      );
+    `);
+
+    applyMigrations(db);
+
+    const migratedCase = db
+      .prepare('SELECT jurisdiction FROM trademark_cases WHERE id = ?')
+      .get('case-1') as TrademarkCaseJurisdictionRow;
+    const goodsServiceForeignKeys = db.prepare('PRAGMA foreign_key_list(goods_services)').all() as
+      | ForeignKeyListRow[]
+      | [];
+    const migrationVersions = db
+      .prepare('SELECT version FROM schema_migrations ORDER BY version')
+      .all() as MigrationVersionRow[];
+
+    expect(migratedCase.jurisdiction).toBe('OTHER');
+    expect(goodsServiceForeignKeys.map((row) => row.table)).toEqual(['trademark_cases']);
+    expect(migrationVersions.map((row) => row.version)).toEqual([1, 2]);
+
+    db.prepare('DELETE FROM trademark_cases WHERE id = ?').run('case-1');
+
+    const remainingGoodsServices = db
+      .prepare('SELECT COUNT(*) as count FROM goods_services WHERE case_id = ?')
+      .get('case-1') as { count: number };
+
+    expect(remainingGoodsServices.count).toBe(0);
   });
 });

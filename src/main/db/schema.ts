@@ -12,7 +12,7 @@ export const INITIAL_SCHEMA_SQL = `
     mark_name TEXT NOT NULL CHECK (length(trim(mark_name)) > 0),
     owner_name TEXT NOT NULL CHECK (length(trim(owner_name)) > 0),
     registration_number TEXT NOT NULL CHECK (length(trim(registration_number)) > 0),
-    jurisdiction TEXT NOT NULL CHECK (jurisdiction IN ('DPMA', 'EUIPO', 'USPTO', 'OTHER')),
+    jurisdiction TEXT NOT NULL CHECK (jurisdiction IN ('DPMA', 'EUIPO', 'WIPO_MADRID', 'OTHER')),
     use_period_from TEXT NOT NULL CHECK (length(use_period_from) = 10),
     use_period_to TEXT NOT NULL CHECK (length(use_period_to) = 10),
     created_at TEXT NOT NULL,

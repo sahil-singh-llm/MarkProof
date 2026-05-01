@@ -189,6 +189,36 @@ describe('case service', () => {
     expect(updated?.goodsServices.map((item) => item.id)).toEqual([keep.id]);
   });
 
+  it('rejects stale goods service ids and rolls back case update and audit', () => {
+    db = createInMemoryDatabase();
+    const service = new CaseService(db);
+    const audit = new AuditRepository(db);
+    const created = service.create(baseCaseInput());
+    const staleGoodsServiceId = '00000000-0000-0000-0000-000000000000';
+
+    expect(() =>
+      service.update(created.trademarkCase.id, {
+        ...baseCaseInput(),
+        ownerName: 'Renamed GmbH',
+        goodsServices: [
+          {
+            id: staleGoodsServiceId,
+            niceClass: 9,
+            description: 'Downloadable software'
+          }
+        ]
+      })
+    ).toThrow(
+      `Goods service ${staleGoodsServiceId} does not belong to case ${created.trademarkCase.id}.`
+    );
+
+    expect(service.get(created.trademarkCase.id)?.trademarkCase.ownerName).toBe('Example GmbH');
+    expect(service.get(created.trademarkCase.id)?.goodsServices).toHaveLength(1);
+    expect(audit.listByCase(created.trademarkCase.id).map((entry) => entry.eventType)).toEqual([
+      'case_created'
+    ]);
+  });
+
   it('records ownerName, jurisdiction and use period transitions in the case_updated audit details', () => {
     db = createInMemoryDatabase();
     const service = new CaseService(db);
