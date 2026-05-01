@@ -82,7 +82,16 @@ export class CaseService {
         details: {
           previousMarkName: existing.markName,
           markName: trademarkCase.markName,
+          previousOwnerName: existing.ownerName,
+          ownerName: trademarkCase.ownerName,
+          previousRegistrationNumber: existing.registrationNumber,
           registrationNumber: trademarkCase.registrationNumber,
+          previousJurisdiction: existing.jurisdiction,
+          jurisdiction: trademarkCase.jurisdiction,
+          previousUsePeriodFrom: existing.usePeriodFrom,
+          usePeriodFrom: trademarkCase.usePeriodFrom,
+          previousUsePeriodTo: existing.usePeriodTo,
+          usePeriodTo: trademarkCase.usePeriodTo,
           goodsServicesCount: goodsServices.length
         }
       });

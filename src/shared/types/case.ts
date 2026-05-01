@@ -50,19 +50,11 @@ export type GoodsServiceDraft = {
   sortOrder?: number;
 };
 
-export type CreateGoodsServiceInput = {
-  id?: string;
+export type CreateGoodsServiceInput = GoodsServiceDraft & {
   caseId: string;
-  niceClass?: number | null;
-  description: string;
-  sortOrder?: number;
 };
 
-export type UpdateGoodsServiceInput = {
-  niceClass?: number | null;
-  description: string;
-  sortOrder?: number;
-};
+export type UpdateGoodsServiceInput = Omit<GoodsServiceDraft, 'id'>;
 
 export type TrademarkCaseRecord = {
   trademarkCase: TrademarkCase;

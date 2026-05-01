@@ -4,6 +4,7 @@ import type {
   CreateGoodsServiceInput,
   CreateTrademarkCaseInput,
   GoodsService,
+  GoodsServiceDraft,
   TrademarkCase,
   UpdateGoodsServiceInput,
   UpdateTrademarkCaseInput
@@ -267,18 +268,48 @@ export class CasesRepository {
 
   replaceGoodsServices(
     caseId: string,
-    inputs: readonly Omit<CreateGoodsServiceInput, 'caseId'>[]
+    inputs: readonly GoodsServiceDraft[]
   ): GoodsService[] {
     const replace = this.db.transaction(() => {
-      this.db.prepare('DELETE FROM goods_services WHERE case_id = ?').run(caseId);
+      const existing = this.listGoodsServices(caseId);
+      const existingIds = new Set(existing.map((item) => item.id));
+      const retainedIds = new Set<string>();
 
-      return inputs.map((input, index) =>
-        this.createGoodsService({
+      for (const input of inputs) {
+        if (input.id !== undefined && existingIds.has(input.id)) {
+          retainedIds.add(input.id);
+        }
+      }
+
+      for (const item of existing) {
+        if (!retainedIds.has(item.id)) {
+          this.deleteGoodsService(item.id);
+        }
+      }
+
+      return inputs.map((input, index) => {
+        const sortOrder = input.sortOrder ?? index;
+
+        if (input.id !== undefined && existingIds.has(input.id)) {
+          const updated = this.updateGoodsService(input.id, {
+            niceClass: input.niceClass ?? null,
+            description: input.description,
+            sortOrder
+          });
+
+          if (!updated) {
+            throw new Error(`Failed to update goods service ${input.id}.`);
+          }
+
+          return updated;
+        }
+
+        return this.createGoodsService({
           ...input,
           caseId,
-          sortOrder: input.sortOrder ?? index
-        })
-      );
+          sortOrder
+        });
+      });
     });
 
     return replace();
