@@ -14,6 +14,7 @@ import { TRADEMARK_JURISDICTIONS } from '../../../../shared/types/case';
 import { DisclaimerBanner } from '../../components/DisclaimerBanner';
 import { CoverageMatrixPanel } from '../coverage/CoverageMatrixPanel';
 import { EvidencePanel } from '../evidence/EvidencePanel';
+import { TimelinePanel } from '../timeline/TimelinePanel';
 
 type GoodsServiceDraftForm = {
   clientId: string;
@@ -216,7 +217,7 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
     setConfirmingDelete(false);
   }
 
-  function refreshCoverage(): void {
+  function refreshEvidenceViews(): void {
     setEvidenceRefreshKey((current) => current + 1);
   }
 
@@ -663,9 +664,11 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
 
       <CoverageMatrixPanel record={selectedRecord} refreshKey={evidenceRefreshKey} />
 
+      <TimelinePanel record={selectedRecord} refreshKey={evidenceRefreshKey} />
+
       <EvidencePanel
         key={selectedRecord?.trademarkCase.id ?? 'no-case'}
-        onEvidenceChanged={refreshCoverage}
+        onEvidenceChanged={refreshEvidenceViews}
         record={selectedRecord}
       />
     </>
