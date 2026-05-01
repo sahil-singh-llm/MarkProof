@@ -88,6 +88,8 @@ Original evidence files will be stored content-addressed under Electron's user d
 
 The SHA-256 hash is part of the evidence record. The hash algorithm is stored explicitly as `sha256` so future algorithms can be introduced without ambiguity.
 
+Imports are validated by extension allow-list, file size cap, and magic-byte detection so non-supported or mislabeled files are rejected before storage.
+
 ## Audit Log Strategy
 
 The initial database schema will include an `audit_log` table for local event tracking. Planned events include import, export, edit, delete, and relevant view or preview actions.
@@ -114,6 +116,7 @@ Run quality checks:
 npm run lint
 npm run typecheck
 npm run test
+npm run format:check
 ```
 
 If you run packaging before tests, `electron-builder` may rebuild `better-sqlite3` for Electron. Rebuild it for the local Node runtime before running Vitest again:
@@ -136,7 +139,7 @@ npm run dist
 
 ## Screenshots
 
-Place screenshots and GIFs in `assets/screenshots/` as the UI develops.
+Screenshots and short GIFs of the working UI will be added to `assets/screenshots/` once the visual presentation is finalized. Planned coverage:
 
 - Case dashboard: `assets/screenshots/case-dashboard.png`
 - Evidence review: `assets/screenshots/evidence-review.png`
@@ -146,4 +149,16 @@ Place screenshots and GIFs in `assets/screenshots/` as the UI develops.
 
 ## Current Status
 
-Step 1 through Step 3 are complete: Electron foundation, secure preload shape, packaging config, SQLite schema, migrations, repository-level data access, and Trademark Case CRUD through typed IPC with a React case workspace. Evidence parsing, coverage, timeline, and PDF export are intentionally implemented in later steps.
+Implemented:
+
+- Electron foundation, secure preload shape, packaging config
+- SQLite schema with migrations and repository-level data access
+- Trademark Case CRUD through typed IPC with a React case workspace
+- Evidence import with PDF text extraction, image EXIF parsing, and deterministic date candidate handling
+- Evidence review UI with goods/services mapping
+- Coverage matrix and evidence timeline visualizations
+- PDF bundle export
+
+Not yet implemented:
+
+- Audit log read UI
