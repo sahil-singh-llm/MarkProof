@@ -110,7 +110,15 @@ function toCreateInput(draft: CaseDraft): CreateTrademarkCaseRecordInput {
 }
 
 function toUpdateInput(draft: CaseDraft): UpdateTrademarkCaseRecordInput {
-  return toCreateInput(draft);
+  return {
+    markName: draft.markName,
+    ownerName: draft.ownerName,
+    registrationNumber: draft.registrationNumber,
+    jurisdiction: draft.jurisdiction,
+    usePeriodFrom: draft.usePeriodFrom,
+    usePeriodTo: draft.usePeriodTo,
+    goodsServices: toGoodsServicesInput(draft.goodsServices)
+  };
 }
 
 function validateDraft(draft: CaseDraft): string | null {

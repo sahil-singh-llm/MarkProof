@@ -8,10 +8,13 @@ import { isAllowedRendererUrl } from '../windows';
 type ContractReturn<TChannel extends keyof IpcChannelContract> = Awaited<
   ReturnType<IpcChannelContract[TChannel]>
 >;
+type ContractArgs<TChannel extends keyof IpcChannelContract> = Parameters<
+  IpcChannelContract[TChannel]
+>;
 
 type SafeHandler<TChannel extends keyof IpcChannelContract> = (
   event: IpcMainInvokeEvent,
-  ...args: unknown[]
+  ...args: ContractArgs<TChannel>
 ) => ContractReturn<TChannel> | Promise<ContractReturn<TChannel>>;
 
 function isTrustedSender(event: IpcMainInvokeEvent): boolean {
@@ -36,7 +39,7 @@ export function registerSafeHandle<TChannel extends keyof IpcChannelContract>(
         throw new Error('Forbidden IPC sender.');
       }
 
-      return await handler(event, ...args);
+      return await handler(event, ...(args as ContractArgs<TChannel>));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Internal error.';
 
