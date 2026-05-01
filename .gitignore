@@ -2,7 +2,7 @@ node_modules/
 dist/
 out/
 release/
-coverage/
+/coverage/
 .vite/
 .eslintcache
 .tmp-tests/

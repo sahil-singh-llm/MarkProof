@@ -12,6 +12,7 @@ import type {
 } from '../../../../shared/types/case';
 import { TRADEMARK_JURISDICTIONS } from '../../../../shared/types/case';
 import { DisclaimerBanner } from '../../components/DisclaimerBanner';
+import { CoverageMatrixPanel } from '../coverage/CoverageMatrixPanel';
 import { EvidencePanel } from '../evidence/EvidencePanel';
 
 type GoodsServiceDraftForm = {
@@ -146,6 +147,7 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [evidenceRefreshKey, setEvidenceRefreshKey] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
@@ -212,6 +214,10 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
     setError(null);
     setNotice(null);
     setConfirmingDelete(false);
+  }
+
+  function refreshCoverage(): void {
+    setEvidenceRefreshKey((current) => current + 1);
   }
 
   function updateDraftField<K extends keyof Omit<CaseDraft, 'goodsServices'>>(
@@ -655,7 +661,13 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
         </aside>
       </div>
 
-      <EvidencePanel key={selectedRecord?.trademarkCase.id ?? 'no-case'} record={selectedRecord} />
+      <CoverageMatrixPanel record={selectedRecord} refreshKey={evidenceRefreshKey} />
+
+      <EvidencePanel
+        key={selectedRecord?.trademarkCase.id ?? 'no-case'}
+        onEvidenceChanged={refreshCoverage}
+        record={selectedRecord}
+      />
     </>
   );
 }

@@ -12,6 +12,7 @@ import type {
 import type { TrademarkCaseRecord } from '../../../../shared/types/case';
 
 type EvidencePanelProps = {
+  onEvidenceChanged?: () => void;
   record: TrademarkCaseRecord | null;
 };
 
@@ -128,7 +129,7 @@ function niceClassLabel(niceClass: number | null): string {
   return niceClass === null ? 'No class' : `Class ${niceClass}`;
 }
 
-export function EvidencePanel({ record }: EvidencePanelProps): ReactElement {
+export function EvidencePanel({ onEvidenceChanged, record }: EvidencePanelProps): ReactElement {
   const caseId = record?.trademarkCase.id ?? null;
   const goodsServices = record?.goodsServices ?? [];
   const [evidenceRecords, setEvidenceRecords] = useState<EvidenceRecord[]>([]);
@@ -252,6 +253,10 @@ export function EvidencePanel({ record }: EvidencePanelProps): ReactElement {
 
       await loadEvidence(preferredEvidenceId);
 
+      if (results.some((result) => result.status === 'imported')) {
+        onEvidenceChanged?.();
+      }
+
       if (results.length === 0) {
         setMessage({ tone: 'success', text: 'Import cancelled.' });
       } else {
@@ -299,6 +304,7 @@ export function EvidencePanel({ record }: EvidencePanelProps): ReactElement {
       setSelectedEvidenceId(updated.evidence.id);
       setDraft(draftFromRecord(updated));
       setConfirmingDelete(false);
+      onEvidenceChanged?.();
       setMessage({ tone: 'success', text: 'Evidence review saved.' });
     } catch (error) {
       setMessage({
@@ -332,6 +338,7 @@ export function EvidencePanel({ record }: EvidencePanelProps): ReactElement {
         setMessage({ tone: 'error', text: 'The selected evidence no longer exists.' });
       } else {
         setMessage({ tone: 'success', text: 'Evidence deleted.' });
+        onEvidenceChanged?.();
       }
 
       await loadEvidence(null);
