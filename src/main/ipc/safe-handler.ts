@@ -1,9 +1,21 @@
 import { ipcMain } from 'electron';
 import type { IpcMainInvokeEvent } from 'electron';
 
-type Handler = (event: IpcMainInvokeEvent, ...args: unknown[]) => unknown;
+import type { IpcChannelContract } from '@shared/ipc/contracts';
 
-export function registerSafeHandle(channel: string, handler: Handler): void {
+type ContractReturn<TChannel extends keyof IpcChannelContract> = Awaited<
+  ReturnType<IpcChannelContract[TChannel]>
+>;
+
+type SafeHandler<TChannel extends keyof IpcChannelContract> = (
+  event: IpcMainInvokeEvent,
+  ...args: unknown[]
+) => ContractReturn<TChannel> | Promise<ContractReturn<TChannel>>;
+
+export function registerSafeHandle<TChannel extends keyof IpcChannelContract>(
+  channel: TChannel,
+  handler: SafeHandler<TChannel>
+): void {
   ipcMain.handle(channel, async (event, ...args) => {
     try {
       return await handler(event, ...args);

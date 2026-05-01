@@ -14,5 +14,8 @@ export const IPC_CHANNELS = {
     listByCase: 'evidence:list-by-case',
     update: 'evidence:update',
     delete: 'evidence:delete'
+  },
+  bundle: {
+    chooseAndExport: 'bundle:choose-and-export'
   }
 } as const;

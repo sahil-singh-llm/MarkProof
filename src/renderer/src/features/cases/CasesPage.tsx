@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ChangeEvent, FormEvent, ReactElement } from 'react';
 
 import { LEGAL_DISCLAIMER } from '../../../../shared/constants/disclaimer';
@@ -14,6 +14,7 @@ import { TRADEMARK_JURISDICTIONS } from '../../../../shared/types/case';
 import { DisclaimerBanner } from '../../components/DisclaimerBanner';
 import { CoverageMatrixPanel } from '../coverage/CoverageMatrixPanel';
 import { EvidencePanel } from '../evidence/EvidencePanel';
+import { ExportPanel } from '../export/ExportPanel';
 import { TimelinePanel } from '../timeline/TimelinePanel';
 
 type GoodsServiceDraftForm = {
@@ -140,6 +141,16 @@ function formatJurisdiction(value: TrademarkJurisdiction): string {
   return value === 'OTHER' ? 'Other' : value;
 }
 
+// Mirrors the server sort: `ORDER BY updated_at DESC, mark_name ASC`.
+function sortRecords(records: readonly TrademarkCaseRecord[]): TrademarkCaseRecord[] {
+  return [...records].sort((a, b) => {
+    const byUpdatedAt = b.trademarkCase.updatedAt.localeCompare(a.trademarkCase.updatedAt);
+    return byUpdatedAt !== 0
+      ? byUpdatedAt
+      : a.trademarkCase.markName.localeCompare(b.trademarkCase.markName);
+  });
+}
+
 export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
   const [records, setRecords] = useState<TrademarkCaseRecord[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -151,6 +162,10 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
   const [evidenceRefreshKey, setEvidenceRefreshKey] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+
+  const markNameInputRef = useRef<HTMLInputElement>(null);
+  const errorBannerRef = useRef<HTMLDivElement>(null);
+  const isMountedRef = useRef(true);
 
   const selectedRecord = useMemo(
     () => records.find((record) => record.trademarkCase.id === selectedId) ?? null,
@@ -167,7 +182,9 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
     setError(null);
 
     try {
-      const nextRecords = await window.markProof.cases.list();
+      const nextRecords = sortRecords(await window.markProof.cases.list());
+      if (!isMountedRef.current) return;
+
       setRecords(nextRecords);
 
       if (nextRecords.length > 0) {
@@ -183,21 +200,43 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
         setMode('create');
       }
     } catch {
-      setError('Could not load trademark cases.');
+      if (isMountedRef.current) setError('Could not load trademark cases.');
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    const loadTimer = window.setTimeout(() => {
-      void loadCases();
-    }, 0);
+    isMountedRef.current = true;
+    // Initial fetch on mount; loadCases drives setState directly via the IPC result.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadCases();
 
     return () => {
-      window.clearTimeout(loadTimer);
+      isMountedRef.current = false;
     };
   }, [loadCases]);
+
+  useEffect(() => {
+    if (!confirmingDelete) return;
+
+    function onKeyDown(event: KeyboardEvent): void {
+      if (event.key === 'Escape') {
+        setConfirmingDelete(false);
+      }
+    }
+
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [confirmingDelete]);
+
+  useEffect(() => {
+    if (error && errorBannerRef.current) {
+      errorBannerRef.current.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }
+  }, [error]);
 
   function startCreate(): void {
     setSelectedId(null);
@@ -206,6 +245,7 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
     setError(null);
     setNotice(null);
     setConfirmingDelete(false);
+    markNameInputRef.current?.focus();
   }
 
   function selectRecord(record: TrademarkCaseRecord): void {
@@ -292,14 +332,12 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
         return;
       }
 
-      setRecords((current) => {
-        const withoutSaved = current.filter(
-          (record) => record.trademarkCase.id !== saved.trademarkCase.id
-        );
-        return [saved, ...withoutSaved].sort((a, b) =>
-          b.trademarkCase.updatedAt.localeCompare(a.trademarkCase.updatedAt)
-        );
-      });
+      setRecords((current) =>
+        sortRecords([
+          saved,
+          ...current.filter((record) => record.trademarkCase.id !== saved.trademarkCase.id)
+        ])
+      );
       setSelectedId(saved.trademarkCase.id);
       setDraft(draftFromRecord(saved));
       setMode('edit');
@@ -324,16 +362,19 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
     setIsSaving(true);
     setError(null);
 
+    const deletedId = draft.id;
+
     try {
-      const result = await window.markProof.cases.delete(draft.id);
+      const result = await window.markProof.cases.delete(deletedId);
 
-      if (!result.deleted) {
-        setError('The selected case no longer exists.');
-      }
-
-      setNotice(result.deleted ? 'Case deleted.' : null);
+      setRecords((current) =>
+        current.filter((record) => record.trademarkCase.id !== deletedId)
+      );
+      setSelectedId(null);
+      setDraft(createEmptyDraft());
+      setMode('create');
       setConfirmingDelete(false);
-      await loadCases(null);
+      setNotice(result.deleted ? 'Case deleted.' : 'Case was already removed.');
     } catch {
       setError('Could not delete the case.');
     } finally {
@@ -393,6 +434,7 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
 
                   return (
                     <button
+                      aria-current={isSelected ? 'true' : undefined}
                       className={`w-full rounded-md border px-3 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
                         isSelected
                           ? 'border-accent bg-accentSoft'
@@ -449,6 +491,8 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
           <div className="space-y-5 px-5 py-5">
             {(error || notice) && (
               <div
+                ref={errorBannerRef}
+                role={error ? 'alert' : 'status'}
                 className={`rounded-md border px-3 py-2 text-sm ${
                   error
                     ? 'border-danger/35 bg-[oklch(0.96_0.026_29)] text-ink'
@@ -465,6 +509,7 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
                 <input
                   className="mt-1 w-full rounded-md border border-line bg-[oklch(0.99_0.004_118)] px-3 py-2 text-sm outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accentSoft"
                   onChange={(event) => updateDraftField('markName', event.target.value)}
+                  ref={markNameInputRef}
                   type="text"
                   value={draft.markName}
                 />
@@ -593,18 +638,30 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-4">
             <div className="flex items-center gap-2">
               {mode === 'edit' && (
-                <button
-                  className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
-                    confirmingDelete
-                      ? 'border-danger/45 bg-[oklch(0.96_0.026_29)] text-ink'
-                      : 'border-line text-muted hover:bg-panel hover:text-ink'
-                  }`}
-                  disabled={isSaving}
-                  onClick={() => void deleteSelectedCase()}
-                  type="button"
-                >
-                  {confirmingDelete ? 'Confirm delete' : 'Delete'}
-                </button>
+                <>
+                  {confirmingDelete && (
+                    <button
+                      className="rounded-md border border-line px-3 py-2 text-sm font-medium text-muted transition-colors hover:bg-panel hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      disabled={isSaving}
+                      onClick={() => setConfirmingDelete(false)}
+                      type="button"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                  <button
+                    className={`rounded-md border px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${
+                      confirmingDelete
+                        ? 'border-danger/45 bg-[oklch(0.96_0.026_29)] text-ink'
+                        : 'border-line text-muted hover:bg-panel hover:text-ink'
+                    }`}
+                    disabled={isSaving}
+                    onClick={() => void deleteSelectedCase()}
+                    type="button"
+                  >
+                    {confirmingDelete ? 'Confirm delete' : 'Delete'}
+                  </button>
+                </>
               )}
             </div>
 
@@ -665,6 +722,8 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
       <CoverageMatrixPanel record={selectedRecord} refreshKey={evidenceRefreshKey} />
 
       <TimelinePanel record={selectedRecord} refreshKey={evidenceRefreshKey} />
+
+      <ExportPanel record={selectedRecord} />
 
       <EvidencePanel
         key={selectedRecord?.trademarkCase.id ?? 'no-case'}
