@@ -5,6 +5,7 @@ import { openDatabase } from './db/database';
 import type { SqliteDatabase } from './db/database';
 import { registerIpcHandlers } from './ipc';
 import { CaseService } from './services/case.service';
+import { EvidenceService } from './services/evidence.service';
 import { configureDefaultSession, createMainWindow } from './windows';
 
 let applicationDatabase: SqliteDatabase | null = null;
@@ -35,7 +36,8 @@ async function bootstrap(): Promise<void> {
   configureDefaultSession();
   applicationDatabase = openDatabase(join(app.getPath('userData'), 'markproof.sqlite3'));
   registerIpcHandlers({
-    caseService: new CaseService(applicationDatabase)
+    caseService: new CaseService(applicationDatabase),
+    evidenceService: new EvidenceService(applicationDatabase)
   });
   await createMainWindow();
 }

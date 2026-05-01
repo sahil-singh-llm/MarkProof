@@ -5,6 +5,12 @@ import type {
   TrademarkCaseRecord,
   UpdateTrademarkCaseRecordInput
 } from '../types/case';
+import type {
+  DeleteEvidenceResult,
+  EvidenceImportResult,
+  EvidenceRecord,
+  UpdateEvidenceReviewInput
+} from '../types/evidence';
 
 export type MarkProofApi = {
   app: {
@@ -19,5 +25,11 @@ export type MarkProofApi = {
       input: UpdateTrademarkCaseRecordInput
     ) => Promise<TrademarkCaseRecord | null>;
     delete: (id: string) => Promise<DeleteTrademarkCaseResult>;
+  };
+  evidence: {
+    chooseAndImport: (caseId: string) => Promise<EvidenceImportResult[]>;
+    listByCase: (caseId: string) => Promise<EvidenceRecord[]>;
+    update: (id: string, input: UpdateEvidenceReviewInput) => Promise<EvidenceRecord | null>;
+    delete: (id: string) => Promise<DeleteEvidenceResult>;
   };
 };

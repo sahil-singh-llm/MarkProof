@@ -267,6 +267,22 @@ export class EvidenceRepository {
     return row ? mapEvidenceItem(row) : null;
   }
 
+  getByHash(caseId: string, fileHash: string): EvidenceItem | null {
+    const row = this.db
+      .prepare(
+        `
+          SELECT *
+          FROM evidence_items
+          WHERE case_id = ? AND hash_algo = ? AND file_hash = ?
+        `
+      )
+      .get(caseId, EVIDENCE_HASH_ALGORITHM, normalizeSha256Hash(fileHash)) as
+      | EvidenceItemRow
+      | undefined;
+
+    return row ? mapEvidenceItem(row) : null;
+  }
+
   listByCase(caseId: string): EvidenceItem[] {
     return this.db
       .prepare(

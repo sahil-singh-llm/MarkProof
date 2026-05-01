@@ -5,6 +5,7 @@ release/
 coverage/
 .vite/
 .eslintcache
+.tmp-tests/
 
 *.log
 *.tsbuildinfo

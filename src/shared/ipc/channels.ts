@@ -8,5 +8,11 @@ export const IPC_CHANNELS = {
     create: 'cases:create',
     update: 'cases:update',
     delete: 'cases:delete'
+  },
+  evidence: {
+    chooseAndImport: 'evidence:choose-and-import',
+    listByCase: 'evidence:list-by-case',
+    update: 'evidence:update',
+    delete: 'evidence:delete'
   }
 } as const;

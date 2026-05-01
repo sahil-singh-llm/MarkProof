@@ -25,6 +25,12 @@ const markProofApi: MarkProofApi = deepFreeze({
     create: (input) => ipcRenderer.invoke(IPC_CHANNELS.cases.create, input),
     update: (id, input) => ipcRenderer.invoke(IPC_CHANNELS.cases.update, id, input),
     delete: (id) => ipcRenderer.invoke(IPC_CHANNELS.cases.delete, id)
+  },
+  evidence: {
+    chooseAndImport: (caseId) => ipcRenderer.invoke(IPC_CHANNELS.evidence.chooseAndImport, caseId),
+    listByCase: (caseId) => ipcRenderer.invoke(IPC_CHANNELS.evidence.listByCase, caseId),
+    update: (id, input) => ipcRenderer.invoke(IPC_CHANNELS.evidence.update, id, input),
+    delete: (id) => ipcRenderer.invoke(IPC_CHANNELS.evidence.delete, id)
   }
 });
 

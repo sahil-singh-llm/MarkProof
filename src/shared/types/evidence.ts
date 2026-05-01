@@ -108,3 +108,50 @@ export type EvidenceGoodsServiceLink = {
   goodsServiceId: string;
   createdAt: string;
 };
+
+export type EvidenceRecord = {
+  evidence: EvidenceItem;
+  dateCandidates: EvidenceDateCandidate[];
+  goodsServiceLinks: EvidenceGoodsServiceLink[];
+};
+
+export const EVIDENCE_IMPORT_REJECTED_REASONS = [
+  'unsupported_type',
+  'too_large',
+  'not_found',
+  'read_failed',
+  'copy_failed',
+  'invalid_case'
+] as const;
+
+export type EvidenceImportRejectedReason = (typeof EVIDENCE_IMPORT_REJECTED_REASONS)[number];
+
+export type EvidenceImportResult =
+  | {
+      status: 'imported';
+      sourceFilename: string;
+      evidence: EvidenceRecord;
+    }
+  | {
+      status: 'duplicate';
+      sourceFilename: string;
+      evidence: EvidenceRecord;
+    }
+  | {
+      status: 'rejected';
+      sourceFilename: string;
+      reason: EvidenceImportRejectedReason;
+      message: string;
+    };
+
+export type UpdateEvidenceReviewInput = {
+  evidenceType: EvidenceType;
+  dateOfUse?: string | null;
+  territory?: string;
+  coveredGoodsServiceIds?: string[];
+  notes?: string;
+};
+
+export type DeleteEvidenceResult = {
+  deleted: boolean;
+};
