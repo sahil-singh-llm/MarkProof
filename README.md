@@ -6,7 +6,11 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Local First](https://img.shields.io/badge/Local--First-100%25-22C55E)](#local-first-design)
 [![Electron + TypeScript](https://img.shields.io/badge/Electron-TypeScript-3178C6)](#tech-stack)
-[![No AI](https://img.shields.io/badge/No_AI-by_design-E11D48)](#why-no-ai-by-default)
+[![Hallucination-Free Pipeline](https://img.shields.io/badge/Hallucination--Free-Pipeline-7C3AED)](#confidentiality-and-verifiable-provenance)
+
+Source files, the SQLite database, and PDF exports never leave the user's machine. Every
+surfaced value traces to a specific extractor (PDF metadata, EXIF, filesystem) or to manual
+reviewer entry — so a defending attorney can demonstrate why each value sits in the bundle.
 
 > This tool organizes evidence. It does not determine legal sufficiency. Always consult a
 > qualified trademark attorney.
@@ -36,14 +40,33 @@ some listed goods or services and not others. MarkProof models that distinction 
 
 MarkProof is designed around the organizational needs created by:
 
-- **§ 26 MarkenG**: use of trademarks under German trademark law.
-- **Art. 18 EUTMR**: use of EU trade marks.
-- Related procedural contexts such as opposition proof-of-use requests, cancellation or
-  revocation for non-use, and infringement defenses where proof of use may be requested.
+- **§ 26 MarkenG**: requirements for genuine use (ernsthafte Benutzung) of a registered
+  German trademark.
+- **Art. 18 EUTMR**: genuine-use requirement for EU trade marks (Verordnung (EU) 2017/1001).
+- Related procedural contexts such as opposition proof-of-use requests
+  (§ 43 Abs. 1 MarkenG, Art. 47(2) EUTMR), cancellation or revocation for non-use
+  (§ 49 Abs. 1 MarkenG, Art. 58(1)(a) EUTMR), and infringement defenses where proof of use
+  may be requested (§ 25 MarkenG, Art. 127(3) EUTMR).
 
 The app deliberately avoids legal conclusions. It uses wording such as **coverage detected**,
 **gap detected**, and **review recommended**. It does not say that evidence is sufficient, valid,
 or outcome-determinative.
+
+## Confidentiality And Verifiable Provenance
+
+Two properties the architecture provides by construction:
+
+**Confidentiality.** Source files, evidence database, and exported PDF bundles stay on the
+user's machine. There is no telemetry, no cloud sync, and no remote inference. The
+Mandatsgeheimnis under § 43a Abs. 2 BRAO and the security-of-processing duties under Art. 32
+GDPR that attach whenever client evidence crosses an organizational boundary are minimized by
+construction here.
+
+**Verifiable provenance.** Each evidence record carries an explicit `hash_algo` field plus a
+SHA-256 hash, and each candidate date is logged with its source (PDF metadata, EXIF date/time
+tags including `DateTimeOriginal`, filesystem creation/modification timestamps, or manual
+review) in `evidence_date_candidates`. A reviewer can trace any value back to why it was
+attributed, and an attorney can defend that attribution against opposing counsel.
 
 ## Core Features
 
@@ -79,21 +102,6 @@ MarkProof stores all application data locally:
 This is intentional. Proof-of-use evidence can contain invoices, customer names, addresses,
 product photos, catalogues, and other confidential material. A portfolio project does not need
 to move that data across a network to demonstrate the core architecture.
-
-## Why No AI By Default
-
-MarkProof avoids AI features by design. Evidence handling should be deterministic, inspectable,
-and easy to explain:
-
-- Hashes are reproducible.
-- Date candidates come from visible extraction rules.
-- Metadata sources are explicit.
-- Review fields are user-editable.
-- Export behavior is testable.
-
-AI could be useful in a production system for OCR, goods/services similarity, or anomaly
-detection, but that would introduce nondeterministic behavior and a larger privacy surface. This
-portfolio project keeps the evidence workflow transparent.
 
 ## Tech Stack
 
@@ -232,7 +240,7 @@ Screenshots and GIFs should be added to `assets/screenshots/` before publishing 
 
 MarkProof intentionally does not implement:
 
-- AI features.
+- LLM-based extraction (would introduce model-version drift; the same source must yield the same value across years).
 - Cloud sync.
 - Multi-user collaboration.
 - Registry API integration.
@@ -242,6 +250,16 @@ MarkProof intentionally does not implement:
 - Payment or licensing flows.
 - Remote database.
 - Web server backend.
+
+## Position Next To AI Legal Tools
+
+MarkProof is positioned as the deterministic ground-truth layer beneath any AI-augmented IP
+workflow, not as their replacement. AI legal tools — for goods/services similarity, anomaly
+detection across evidence sets, or attorney-facing summarization — are only as defensible as
+the evidence layer they read from. A bundle whose dates, hashes, and source attributions a
+reviewer can fully reconstruct is exactly the input profile a responsibly built AI tool needs
+upstream of it. Source files stay local, provenance stays explicit, and the AI tier — when
+added — plugs in above this layer rather than into it.
 
 ## License And Attribution
 
