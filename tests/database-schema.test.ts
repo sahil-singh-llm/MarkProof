@@ -62,4 +62,42 @@ describe('database schema', () => {
     expect(pragma.foreign_keys).toBe(1);
     expect(hashAlgoColumn?.dflt_value).toBe("'sha256'");
   });
+
+  it('cascades goods_services deletion when a trademark_case is deleted', () => {
+    db = createInMemoryDatabase();
+
+    db.prepare(
+      `
+        INSERT INTO trademark_cases (
+          id, mark_name, owner_name, registration_number, jurisdiction,
+          use_period_from, use_period_to, created_at, updated_at
+        )
+        VALUES (
+          'case-1', 'MarkProof', 'Example GmbH', 'REG-1', 'DPMA',
+          '2021-01-01', '2026-01-01',
+          '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
+        )
+      `
+    ).run();
+
+    db.prepare(
+      `
+        INSERT INTO goods_services (
+          id, case_id, nice_class, description, sort_order, created_at, updated_at
+        )
+        VALUES (
+          'gs-1', 'case-1', 9, 'Software', 0,
+          '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'
+        )
+      `
+    ).run();
+
+    db.prepare('DELETE FROM trademark_cases WHERE id = ?').run('case-1');
+
+    const remaining = db
+      .prepare('SELECT COUNT(*) as count FROM goods_services WHERE case_id = ?')
+      .get('case-1') as { count: number };
+
+    expect(remaining.count).toBe(0);
+  });
 });
