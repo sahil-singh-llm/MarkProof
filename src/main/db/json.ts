@@ -10,6 +10,10 @@ function sanitize(value: unknown, depth = 0): unknown {
     return value;
   }
 
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
   if (Array.isArray(value)) {
     return value.map((item) => sanitize(item, depth + 1));
   }

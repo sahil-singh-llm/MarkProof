@@ -37,6 +37,48 @@ type PdfParseConstructor = new (options: { data: Uint8Array }) => {
   destroy?: () => Promise<void> | void;
 };
 
+type PdfParseClass = PdfParseConstructor & {
+  setWorker?: (workerSrc?: string) => string;
+};
+
+type PdfParseWorkerModule = {
+  getData?: () => string;
+  getPath?: () => string;
+};
+
+let pdfWorkerConfigured = false;
+
+async function configurePdfWorker(PDFParse: PdfParseClass): Promise<void> {
+  if (pdfWorkerConfigured) {
+    return;
+  }
+
+  pdfWorkerConfigured = true;
+
+  try {
+    const workerModule = (await import('pdf-parse/worker')) as PdfParseWorkerModule;
+    const workerSource =
+      typeof workerModule.getData === 'function'
+        ? workerModule.getData()
+        : workerModule.getPath?.();
+
+    if (workerSource) {
+      PDFParse.setWorker?.(workerSource);
+    }
+  } catch (error) {
+    console.warn('[evidence] pdf worker setup failed:', error);
+  }
+}
+
+function isSqliteUniqueConstraintError(error: unknown): boolean {
+  return (
+    error !== null &&
+    typeof error === 'object' &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'SQLITE_CONSTRAINT_UNIQUE'
+  );
+}
+
 export class EvidenceService {
   private readonly auditRepository: AuditRepository;
   private readonly casesRepository: CasesRepository;
@@ -91,6 +133,9 @@ export class EvidenceService {
     }
 
     const updateEvidence = this.db.transaction(() => {
+      const previousGoodsServiceIds = this.evidenceRepository
+        .listGoodsServiceLinks(id)
+        .map((link) => link.goodsServiceId);
       const updated = this.evidenceRepository.update(id, {
         evidenceType: input.evidenceType,
         dateOfUse: input.dateOfUse === undefined ? existing.dateOfUse : input.dateOfUse,
@@ -113,8 +158,17 @@ export class EvidenceService {
         entityId: id,
         details: {
           sourceFilename: existing.sourceFilename,
-          evidenceType: input.evidenceType,
-          coveredGoodsServicesCount: goodsServiceIds?.length
+          previousEvidenceType: existing.evidenceType,
+          evidenceType: updated.evidenceType,
+          previousDateOfUse: existing.dateOfUse,
+          dateOfUse: updated.dateOfUse,
+          previousTerritory: existing.territory,
+          territory: updated.territory,
+          notesChanged: existing.notes !== updated.notes,
+          coveredGoodsServicesChanged: goodsServiceIds !== undefined,
+          previousCoveredGoodsServicesCount: previousGoodsServiceIds.length,
+          coveredGoodsServicesCount:
+            goodsServiceIds === undefined ? previousGoodsServiceIds.length : goodsServiceIds.length
         }
       });
 
@@ -238,10 +292,30 @@ export class EvidenceService {
       return this.toRecord(evidence);
     });
 
+    let evidenceRecord: EvidenceRecord;
+
+    try {
+      evidenceRecord = createEvidence();
+    } catch (error) {
+      if (isSqliteUniqueConstraintError(error)) {
+        const duplicateAfterRace = this.evidenceRepository.getByHash(caseId, storedFile.sha256);
+
+        if (duplicateAfterRace) {
+          return {
+            status: 'duplicate',
+            sourceFilename: storedFile.sourceFilename,
+            evidence: this.toRecord(duplicateAfterRace)
+          };
+        }
+      }
+
+      throw error;
+    }
+
     return {
       status: 'imported',
       sourceFilename: storedFile.sourceFilename,
-      evidence: createEvidence()
+      evidence: evidenceRecord
     };
   }
 
@@ -286,9 +360,10 @@ export class EvidenceService {
   ): Promise<{ text: string | null; status: 'completed' | 'failed' }> {
     try {
       const [{ PDFParse }, fileBuffer] = await Promise.all([
-        import('pdf-parse') as Promise<{ PDFParse: PdfParseConstructor }>,
+        import('pdf-parse') as Promise<{ PDFParse: PdfParseClass }>,
         readFile(storedAbsolutePath)
       ]);
+      await configurePdfWorker(PDFParse);
       const parser = new PDFParse({ data: new Uint8Array(fileBuffer) });
 
       try {

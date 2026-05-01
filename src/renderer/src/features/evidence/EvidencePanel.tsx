@@ -201,6 +201,7 @@ export function EvidencePanel({ record }: EvidencePanelProps): ReactElement {
     setSelectedEvidenceId(evidenceRecord.evidence.id);
     setDraft(draftFromRecord(evidenceRecord));
     setMessage(null);
+    setImportResults([]);
     setConfirmingDelete(false);
   }
 
@@ -239,6 +240,7 @@ export function EvidencePanel({ record }: EvidencePanelProps): ReactElement {
 
     setIsImporting(true);
     setMessage(null);
+    setImportResults([]);
 
     try {
       const results = await window.markProof.evidence.chooseAndImport(caseId);
@@ -582,6 +584,7 @@ export function EvidencePanel({ record }: EvidencePanelProps): ReactElement {
                             ? 'border-accent bg-accentSoft text-accent'
                             : 'border-line bg-surface text-muted hover:bg-accentSoft hover:text-accent'
                         }`}
+                        aria-pressed={draft.dateOfUse === candidate.candidateDate}
                         key={candidate.id}
                         onClick={() => updateDraft('dateOfUse', candidate.candidateDate)}
                         type="button"
@@ -648,6 +651,7 @@ export function EvidencePanel({ record }: EvidencePanelProps): ReactElement {
                       ? 'border-danger/45 bg-[oklch(0.96_0.026_29)] text-ink'
                       : 'border-line bg-surface text-muted hover:bg-panel hover:text-ink'
                   }`}
+                  aria-pressed={confirmingDelete}
                   disabled={isSaving}
                   onClick={() => void deleteEvidence()}
                   type="button"

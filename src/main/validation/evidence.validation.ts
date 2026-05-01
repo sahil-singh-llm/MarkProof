@@ -1,6 +1,8 @@
 import { EVIDENCE_TYPES } from '@shared/types/evidence';
 import type { EvidenceType, UpdateEvidenceReviewInput } from '@shared/types/evidence';
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -47,6 +49,14 @@ function readEvidenceType(input: Record<string, unknown>): EvidenceType {
   return value as EvidenceType;
 }
 
+function requireUuid(value: string, fieldName: string): string {
+  if (!UUID_PATTERN.test(value)) {
+    throw new Error(`${fieldName} must be a UUID.`);
+  }
+
+  return value.toLowerCase();
+}
+
 function readGoodsServiceIds(input: Record<string, unknown>): string[] | undefined {
   const value = input.coveredGoodsServiceIds;
 
@@ -58,7 +68,7 @@ function readGoodsServiceIds(input: Record<string, unknown>): string[] | undefin
     throw new Error('coveredGoodsServiceIds must be an array of strings.');
   }
 
-  return value;
+  return value.map((item, index) => requireUuid(item, `coveredGoodsServiceIds[${index}]`));
 }
 
 export function parseEvidenceId(value: unknown): string {
@@ -66,7 +76,7 @@ export function parseEvidenceId(value: unknown): string {
     throw new Error('Evidence id must be a non-empty string.');
   }
 
-  return value;
+  return requireUuid(value, 'Evidence id');
 }
 
 export function parseUpdateEvidenceReviewInput(value: unknown): UpdateEvidenceReviewInput {

@@ -154,6 +154,80 @@ describe('repositories', () => {
     expect(updated?.dateOfUse).toBe('2024-05-11');
   });
 
+  it('serializes Date values in JSON metadata instead of dropping them', () => {
+    db = createInMemoryDatabase();
+    const cases = new CasesRepository(db, () => FIXED_TIME);
+    const evidence = new EvidenceRepository(db, () => FIXED_TIME);
+
+    cases.create({
+      id: 'case-1',
+      markName: 'MarkProof',
+      ownerName: 'Example GmbH',
+      registrationNumber: '302026000001',
+      jurisdiction: 'EUIPO',
+      usePeriodFrom: '2021-01-01',
+      usePeriodTo: '2026-01-01'
+    });
+
+    const item = evidence.create({
+      id: 'ev-date',
+      caseId: 'case-1',
+      evidenceType: 'photo',
+      sourceFilename: 'exif-photo.jpg',
+      storedRelativePath: `cases/case-1/evidence/${SHA_256}.jpg`,
+      fileHash: SHA_256,
+      fileSizeBytes: 2048,
+      extractedTextStatus: 'not_applicable',
+      exifJson: {
+        DateTimeOriginal: new Date('2024-03-15T10:30:00.000Z')
+      }
+    });
+
+    expect(item.exifJson).toEqual({
+      DateTimeOriginal: '2024-03-15T10:30:00.000Z'
+    });
+  });
+
+  it('rejects duplicate evidence hashes within the same case', () => {
+    db = createInMemoryDatabase();
+    const cases = new CasesRepository(db, () => FIXED_TIME);
+    const evidence = new EvidenceRepository(db, () => FIXED_TIME);
+
+    cases.create({
+      id: 'case-1',
+      markName: 'MarkProof',
+      ownerName: 'Example GmbH',
+      registrationNumber: '302026000001',
+      jurisdiction: 'EUIPO',
+      usePeriodFrom: '2021-01-01',
+      usePeriodTo: '2026-01-01'
+    });
+
+    evidence.create({
+      id: 'ev-1',
+      caseId: 'case-1',
+      evidenceType: 'photo',
+      sourceFilename: 'photo-a.jpg',
+      storedRelativePath: `cases/case-1/evidence/${SHA_256}.jpg`,
+      fileHash: SHA_256,
+      fileSizeBytes: 2048,
+      extractedTextStatus: 'not_applicable'
+    });
+
+    expect(() =>
+      evidence.create({
+        id: 'ev-2',
+        caseId: 'case-1',
+        evidenceType: 'photo',
+        sourceFilename: 'photo-b.jpg',
+        storedRelativePath: `cases/case-1/evidence/${SHA_256}.jpg`,
+        fileHash: SHA_256,
+        fileSizeBytes: 2048,
+        extractedTextStatus: 'not_applicable'
+      })
+    ).toThrow();
+  });
+
   it('records audit events and preserves their case reference when a case is deleted', () => {
     db = createInMemoryDatabase();
     const cases = new CasesRepository(db, () => FIXED_TIME);

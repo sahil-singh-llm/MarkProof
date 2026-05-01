@@ -77,6 +77,18 @@ function toIsoOrNull(value: Date): string | null {
   return Number.isNaN(value.getTime()) ? null : value.toISOString();
 }
 
+function formatImportLimit(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${Math.round(bytes / 1024)} KB`;
+  }
+
+  return `${Math.round(bytes / 1024 / 1024)} MB`;
+}
+
 function detectFileKind(
   extension: string,
   header: Buffer
@@ -197,7 +209,7 @@ export class EvidenceStorageService {
     if (sourceStats.size > this.maxFileSizeBytes) {
       throw new EvidenceStorageError(
         'too_large',
-        `File exceeds the ${Math.round(this.maxFileSizeBytes / 1024 / 1024)} MB import limit.`
+        `File exceeds the ${formatImportLimit(this.maxFileSizeBytes)} import limit.`
       );
     }
 
@@ -264,11 +276,10 @@ export class EvidenceStorageService {
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
           alreadyStored = true;
+          await unlink(tempPath).catch(() => undefined);
         } else {
           throw error;
         }
-      } finally {
-        await unlink(tempPath).catch(() => undefined);
       }
     }
 

@@ -17,6 +17,7 @@ const evidenceFileFilters = [
 
 export function registerEvidenceIpc(evidenceService: EvidenceService): void {
   registerSafeHandle(IPC_CHANNELS.evidence.chooseAndImport, async (event, caseId) => {
+    const parsedCaseId = parseCaseId(caseId);
     const parentWindow = BrowserWindow.fromWebContents(event.sender);
     const options: OpenDialogOptions = {
       title: 'Import evidence files',
@@ -31,7 +32,7 @@ export function registerEvidenceIpc(evidenceService: EvidenceService): void {
       return [];
     }
 
-    return evidenceService.importFiles(parseCaseId(caseId), result.filePaths);
+    return evidenceService.importFiles(parsedCaseId, result.filePaths);
   });
 
   registerSafeHandle(IPC_CHANNELS.evidence.listByCase, (_event, caseId) =>
