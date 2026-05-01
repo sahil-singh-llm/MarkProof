@@ -1,100 +1,180 @@
 # MarkProof
 
-Trademark Use Evidence Manager for local proof-of-use bundle preparation.
+**MarkProof is a local desktop tool for structuring trademark proof-of-use evidence bundles
+("Benutzungsnachweis") for attorney review under § 26 MarkenG and Art. 18 EUTMR.**
 
-> This tool organizes evidence. It does not determine legal sufficiency. Always consult a qualified trademark attorney.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Local First](https://img.shields.io/badge/Local--First-100%25-22C55E)](#local-first-design)
+[![Electron + TypeScript](https://img.shields.io/badge/Electron-TypeScript-3178C6)](#tech-stack)
+[![No AI](https://img.shields.io/badge/No_AI-by_design-E11D48)](#why-no-ai-by-default)
+
+> This tool organizes evidence. It does not determine legal sufficiency. Always consult a
+> qualified trademark attorney.
 
 ## What MarkProof Does
 
-MarkProof is a local desktop app for structuring trademark proof-of-use evidence bundles. It is designed as a portfolio project that demonstrates secure Electron architecture, readable TypeScript, local-first data handling, and a polished workflow for organizing evidence.
+MarkProof helps organize trademark use evidence for a single local desktop user. It lets the
+user create trademark cases, define concrete goods and services below Nice-class level, import
+PDF and image evidence, review extracted metadata, map evidence to goods/services descriptions,
+visualize coverage over time, and export a structured PDF proof bundle.
 
-The app will help users maintain trademark cases, import evidence, review extracted metadata, visualize coverage, and export structured PDF bundles.
+The app is a portfolio showcase for secure Electron architecture, strict TypeScript, local-first
+data handling, deterministic parsing, and polished legal-tech product thinking. It is not a
+production legal product.
 
 ## Why Proof Of Use Matters
 
-Trademark rights can become vulnerable if a mark is not genuinely used for the goods and services for which it is registered. Organized evidence helps counsel review whether use can be documented across products, services, territories, and time periods.
+Trademark proof of use is about showing genuine use of a registered mark for the goods and
+services covered by the registration. In practice, attorneys and legal operations teams need to
+find evidence that connects dates, territories, products or services, and source documents.
 
-## Brief Legal Context
+The important product detail is that evidence should not only be mapped to broad Nice classes.
+It should be mapped to the actual goods/services descriptions, because a mark can be used for
+some listed goods or services and not others. MarkProof models that distinction directly.
 
-- § 26 MarkenG concerns use of German trademarks.
-- Art. 18 EUTMR concerns use of European Union trademarks.
+## Legal Context
 
-MarkProof does not evaluate legal sufficiency, make predictions, or provide legal scoring. It only organizes evidence for review.
+MarkProof is designed around the organizational needs created by:
 
-## Local-First Rationale
+- **§ 26 MarkenG**: use of trademarks under German trademark law.
+- **Art. 18 EUTMR**: use of EU trade marks.
+- Related procedural contexts such as opposition proof-of-use requests, cancellation or
+  revocation for non-use, and infringement defenses where proof of use may be requested.
 
-Proof-of-use material can include invoices, catalogues, product photos, packaging photos, screenshots, and advertisements. These files may contain confidential business information. MarkProof is therefore designed to keep all files, metadata, parsing, SQLite storage, and PDF export on the user's machine.
+The app deliberately avoids legal conclusions. It uses wording such as **coverage detected**,
+**gap detected**, and **review recommended**. It does not say that evidence is sufficient, valid,
+or outcome-determinative.
 
-## No AI By Default
+## Core Features
 
-The project intentionally avoids AI features. Evidence handling should be deterministic, inspectable, and easy to explain in a portfolio review. Date extraction, metadata normalization, hashing, and export behavior should remain auditable and testable.
+- Trademark case CRUD with mark name, owner, registration number, jurisdiction, relevant use
+  period, Nice classes, and concrete goods/services descriptions.
+- Evidence import for PDFs, JPEGs, and PNGs.
+- SHA-256 hashing of original evidence files.
+- Content-addressed local storage under the Electron user-data directory.
+- PDF text extraction via `pdf-parse`.
+- Image EXIF metadata extraction via `exifr`.
+- Deterministic candidate-date extraction from text, EXIF, and filesystem metadata.
+- Review UI for correcting date of use, evidence type, territory, notes, and goods/services
+  mappings.
+- Coverage matrix by goods/services row and annual time-period column.
+- D3 evidence timeline ordered chronologically and color-coded by evidence type.
+- Structured PDF bundle export via `pdf-lib`.
+- Local audit log for imports, updates, deletes, and bundle exports.
+
+## Local-First Design
+
+MarkProof stores all application data locally:
+
+- SQLite database in Electron `userData`.
+- Evidence files in a local content-addressed case folder.
+- PDF exports written to a user-selected local path.
+- No cloud sync.
+- No remote database.
+- No authentication.
+- No web server backend.
+- No runtime registry API integration.
+- No telemetry.
+
+This is intentional. Proof-of-use evidence can contain invoices, customer names, addresses,
+product photos, catalogues, and other confidential material. A portfolio project does not need
+to move that data across a network to demonstrate the core architecture.
+
+## Why No AI By Default
+
+MarkProof avoids AI features by design. Evidence handling should be deterministic, inspectable,
+and easy to explain:
+
+- Hashes are reproducible.
+- Date candidates come from visible extraction rules.
+- Metadata sources are explicit.
+- Review fields are user-editable.
+- Export behavior is testable.
+
+AI could be useful in a production system for OCR, goods/services similarity, or anomaly
+detection, but that would introduce nondeterministic behavior and a larger privacy surface. This
+portfolio project keeps the evidence workflow transparent.
 
 ## Tech Stack
 
-- Electron for the desktop shell.
-- electron-vite for a fast Electron and Vite development workflow.
-- React and TypeScript strict mode for the renderer.
-- Tailwind CSS for a compact product UI.
-- SQLite via better-sqlite3 for local structured data.
-- pdf-parse for PDF text extraction.
-- exifr for image metadata.
-- pdf-lib for PDF bundle generation.
-- D3.js for evidence timeline visualization.
-- Vitest for deterministic core tests.
-- ESLint and Prettier for code quality.
+- **Electron**: desktop shell and native dialogs.
+- **electron-vite**: development and production bundling.
+- **React**: renderer UI.
+- **TypeScript strict mode**: typed contracts across main, preload, renderer, and shared modules.
+- **Tailwind CSS**: restrained product UI styling.
+- **SQLite via better-sqlite3**: local-first structured storage.
+- **pdf-parse**: PDF text extraction in the main process.
+- **exifr**: image and EXIF metadata extraction in the main process.
+- **pdf-lib**: structured PDF bundle generation.
+- **D3.js**: interactive evidence timeline.
+- **Vitest**: deterministic tests for core logic and services.
+- **ESLint + Prettier**: code quality and formatting.
 
 ## Architecture Overview
 
 ```text
 src/
   main/       Electron main process, IPC handlers, database, storage, parsing, export
-  preload/    Narrow typed bridge exposed through contextBridge
+  preload/    Typed contextBridge API, no generic invoke exposed
   renderer/   React UI with no direct Node.js access
-  shared/     Serializable types, constants, and explicit IPC contracts
-tests/        Deterministic logic tests
+  shared/     Serializable types, constants, IPC contracts, pure logic
+tests/        Vitest tests for parsing, coverage, timeline, repositories, services
 resources/    App icons and packaging resources
 ```
 
-The renderer communicates only through explicit methods exposed by the preload bridge. It never receives a generic IPC invoke function.
+Key boundaries:
 
-## Database Model
-
-The initial SQLite schema is migration-based and contains:
-
-- `trademark_cases` for case-level mark, owner, jurisdiction, registration, and use period data.
-- `goods_services` for actual goods/services descriptions below Nice class level.
-- `evidence_items` for imported file metadata, explicit `hash_algo`, SHA-256 hash, review fields, extracted text status, and file timestamps.
-- `evidence_goods_services` for mapping evidence to concrete goods/services descriptions.
-- `evidence_date_candidates` for deterministic candidate dates from PDFs, EXIF, filesystem metadata, or manual review.
-- `audit_log` for local import, export, edit, delete, view, and system events.
+- Renderer calls only explicit typed preload methods.
+- Filesystem operations happen in the Electron main process.
+- Database operations happen in the Electron main process.
+- PDF parsing and bundle generation happen outside the renderer.
+- Shared modules contain serializable types and pure calculation logic.
 
 ## Security Model
+
+Electron is configured with secure defaults:
 
 - `contextIsolation: true`
 - `nodeIntegration: false`
 - `sandbox: true`
-- No direct Node.js APIs in the renderer.
 - No broad generic IPC method exposed to the renderer.
-- Filesystem, database, parsing, hashing, and PDF export work happen in the main process.
-- No remote production URLs are loaded.
+- No remote production URLs loaded.
+- Permission requests are denied by default.
+- Window navigation and new-window creation are restricted.
 
-## Storage Strategy
+Evidence import is also constrained:
 
-Original evidence files will be stored content-addressed under Electron's user data directory:
+- Supported files: PDF, JPEG, PNG.
+- Extension allow-list plus magic-byte validation.
+- Hard file-size limit.
+- SHA-256 hash stored with explicit `hash_algo`.
+- Content-addressed file path based on hash.
+- Path traversal protection when resolving stored evidence paths.
 
-```text
-<userData>/cases/<caseId>/evidence/<sha256>.<ext>
-```
+## PDF Bundle Export
 
-The SHA-256 hash is part of the evidence record. The hash algorithm is stored explicitly as `sha256` so future algorithms can be introduced without ambiguity.
+The PDF bundle export includes:
 
-Imports are validated by extension allow-list, file size cap, and magic-byte detection so non-supported or mislabeled files are rejected before storage.
+- Cover page with mark name, owner, registration number, jurisdiction, and relevant use period.
+- Table of contents.
+- Evidence index table.
+- Numbered exhibits.
+- Per-exhibit metadata sheet with date of use, evidence type, territory, goods/services, notes,
+  source filename, and SHA-256 hash.
+- Original evidence pages or images appended where practical.
 
-## Audit Log Strategy
+Exports are generated locally and recorded in the audit log as `bundle_exported`.
 
-The initial database schema will include an `audit_log` table for local event tracking. Planned events include import, export, edit, delete, and relevant view or preview actions.
+## Database Model
 
-Because MarkProof has no authentication, the audit actor is a local application actor such as `local-user` or `system`. This is a local chain-of-events record, not a verified identity system.
+| Table                      | Purpose                                                                   |
+| -------------------------- | ------------------------------------------------------------------------- |
+| `trademark_cases`          | Case-level mark, owner, jurisdiction, registration number, use period     |
+| `goods_services`           | Concrete goods/services descriptions below Nice-class level               |
+| `evidence_items`           | Imported evidence metadata, SHA-256 hash, review fields                   |
+| `evidence_goods_services`  | Many-to-many mapping between evidence and goods/services                  |
+| `evidence_date_candidates` | Candidate dates from PDF text, EXIF, file timestamps, manual review       |
+| `audit_log`                | Local audit events for import, update, delete, export, and system actions |
 
 ## Development
 
@@ -104,61 +184,68 @@ Install dependencies:
 npm install
 ```
 
-Run the app in development:
+Run the desktop app in development:
 
 ```bash
 npm run dev
 ```
 
-Run quality checks:
+Quality checks:
 
 ```bash
+npm run format:check
 npm run lint
 npm run typecheck
 npm run test
-npm run format:check
 ```
 
-If you run packaging before tests, `electron-builder` may rebuild `better-sqlite3` for Electron. Rebuild it for the local Node runtime before running Vitest again:
-
-```bash
-npm run rebuild:node
-```
-
-Build the app:
+Build:
 
 ```bash
 npm run build
 ```
 
-Create distributables:
+Package:
 
 ```bash
 npm run dist
 ```
 
+If `better-sqlite3` was rebuilt for Electron packaging and Vitest later fails against the local
+Node runtime, rebuild native dependencies for Node:
+
+```bash
+npm run rebuild:node
+```
+
 ## Screenshots
 
-Screenshots and short GIFs of the working UI will be added to `assets/screenshots/` once the visual presentation is finalized. Planned coverage:
+Screenshots and GIFs should be added to `assets/screenshots/` before publishing the portfolio:
 
-- Case dashboard: `assets/screenshots/case-dashboard.png`
-- Evidence review: `assets/screenshots/evidence-review.png`
-- Coverage matrix: `assets/screenshots/coverage-matrix.png`
-- Timeline: `assets/screenshots/timeline.gif`
-- PDF export flow: `assets/screenshots/export-flow.png`
+- `assets/screenshots/case-dashboard.png`
+- `assets/screenshots/evidence-review.png`
+- `assets/screenshots/coverage-matrix.png`
+- `assets/screenshots/timeline.gif`
+- `assets/screenshots/pdf-export.png`
 
-## Current Status
+## Explicit Non-Goals
 
-Implemented:
+MarkProof intentionally does not implement:
 
-- Electron foundation, secure preload shape, packaging config
-- SQLite schema with migrations and repository-level data access
-- Trademark Case CRUD through typed IPC with a React case workspace
-- Evidence import with PDF text extraction, image EXIF parsing, and deterministic date candidate handling
-- Evidence review UI with goods/services mapping
-- Coverage matrix and evidence timeline visualizations
-- PDF bundle export
+- AI features.
+- Cloud sync.
+- Multi-user collaboration.
+- Registry API integration.
+- Legal scoring.
+- Legal predictions.
+- Authentication.
+- Payment or licensing flows.
+- Remote database.
+- Web server backend.
 
-Not yet implemented:
+## License And Attribution
 
-- Audit log read UI
+Original source code is released under the MIT License. See [LICENSE](LICENSE).
+
+Third-party dependencies retain their own licenses. See
+[THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md).
