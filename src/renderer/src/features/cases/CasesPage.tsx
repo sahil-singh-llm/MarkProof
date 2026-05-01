@@ -12,6 +12,7 @@ import type {
 } from '../../../../shared/types/case';
 import { TRADEMARK_JURISDICTIONS } from '../../../../shared/types/case';
 import { DisclaimerBanner } from '../../components/DisclaimerBanner';
+import { EvidencePanel } from '../evidence/EvidencePanel';
 
 type GoodsServiceDraftForm = {
   clientId: string;
@@ -653,6 +654,8 @@ export function CasesPage({ appInfo }: CasesPageProps): ReactElement {
           </dl>
         </aside>
       </div>
+
+      <EvidencePanel key={selectedRecord?.trademarkCase.id ?? 'no-case'} record={selectedRecord} />
     </>
   );
 }
