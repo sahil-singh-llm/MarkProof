@@ -63,6 +63,27 @@ describe('case service', () => {
     expect(audit.listByCase(created.trademarkCase.id).map((entry) => entry.eventType)).toContain(
       'case_created'
     );
+    expect(
+      audit.listByCase(created.trademarkCase.id).find((entry) => entry.eventType === 'case_created')
+        ?.details
+    ).toMatchObject({
+      caseSnapshot: {
+        id: created.trademarkCase.id,
+        markName: 'MarkProof',
+        ownerName: 'Example GmbH',
+        registrationNumber: '302026000001',
+        jurisdiction: 'DPMA',
+        usePeriodFrom: '2021-01-01',
+        usePeriodTo: '2026-01-01'
+      },
+      goodsServices: [
+        expect.objectContaining({
+          id: created.goodsServices[0]!.id,
+          niceClass: 9,
+          description: 'Downloadable software for trademark evidence management'
+        })
+      ]
+    });
 
     const updated = service.update(created.trademarkCase.id, {
       markName: 'MarkProof',
@@ -189,6 +210,39 @@ describe('case service', () => {
     expect(updated?.goodsServices.map((item) => item.id)).toEqual([keep.id]);
   });
 
+  it('rejects duplicate retained goods service ids and rolls back case update and audit', () => {
+    db = createInMemoryDatabase();
+    const service = new CaseService(db);
+    const audit = new AuditRepository(db);
+    const created = service.create(baseCaseInput());
+    const goodsService = created.goodsServices[0]!;
+
+    expect(() =>
+      service.update(created.trademarkCase.id, {
+        ...baseCaseInput(),
+        ownerName: 'Renamed GmbH',
+        goodsServices: [
+          {
+            id: goodsService.id,
+            niceClass: 9,
+            description: 'Downloadable software'
+          },
+          {
+            id: goodsService.id,
+            niceClass: 42,
+            description: 'Hosted software services'
+          }
+        ]
+      })
+    ).toThrow(`Duplicate goods service id ${goodsService.id} in replace input.`);
+
+    expect(service.get(created.trademarkCase.id)?.trademarkCase.ownerName).toBe('Example GmbH');
+    expect(service.get(created.trademarkCase.id)?.goodsServices).toHaveLength(1);
+    expect(audit.listByCase(created.trademarkCase.id).map((entry) => entry.eventType)).toEqual([
+      'case_created'
+    ]);
+  });
+
   it('rejects stale goods service ids and rolls back case update and audit', () => {
     db = createInMemoryDatabase();
     const service = new CaseService(db);
@@ -250,6 +304,70 @@ describe('case service', () => {
     });
   });
 
+  it('records goods service before/after details and diff in the case_updated audit', () => {
+    db = createInMemoryDatabase();
+    const service = new CaseService(db);
+    const audit = new AuditRepository(db);
+
+    const created = service.create({
+      ...baseCaseInput(),
+      goodsServices: [
+        { niceClass: 9, description: 'Downloadable software' },
+        { niceClass: 42, description: 'Hosted software services' }
+      ]
+    });
+    const keep = created.goodsServices.find((item) => item.niceClass === 9)!;
+    const remove = created.goodsServices.find((item) => item.niceClass === 42)!;
+
+    service.update(created.trademarkCase.id, {
+      ...baseCaseInput(),
+      goodsServices: [
+        {
+          id: keep.id,
+          niceClass: 9,
+          description: 'Updated downloadable software'
+        },
+        {
+          niceClass: 35,
+          description: 'Advertising services'
+        }
+      ]
+    });
+
+    const updateEntry = audit
+      .listByCase(created.trademarkCase.id)
+      .find((entry) => entry.eventType === 'case_updated');
+
+    expect(updateEntry?.details.previousGoodsServices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: keep.id, description: 'Downloadable software' }),
+        expect.objectContaining({ id: remove.id, description: 'Hosted software services' })
+      ])
+    );
+    expect(updateEntry?.details.goodsServices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: keep.id, description: 'Updated downloadable software' }),
+        expect.objectContaining({ niceClass: 35, description: 'Advertising services' })
+      ])
+    );
+    expect(updateEntry?.details.goodsServicesDiff).toMatchObject({
+      added: [expect.objectContaining({ niceClass: 35, description: 'Advertising services' })],
+      removed: [expect.objectContaining({ id: remove.id })],
+      updated: [
+        {
+          previous: expect.objectContaining({
+            id: keep.id,
+            description: 'Downloadable software'
+          }),
+          current: expect.objectContaining({
+            id: keep.id,
+            description: 'Updated downloadable software'
+          })
+        }
+      ]
+    });
+  });
+
   it('returns null and writes no audit entry when updating a non-existent case', () => {
     db = createInMemoryDatabase();
     const service = new CaseService(db);
@@ -292,6 +410,22 @@ describe('case service', () => {
       .find((entry) => entry.eventType === 'case_deleted');
 
     expect(deleteEntry?.details.goodsServicesCount).toBe(3);
+    expect(deleteEntry?.details.caseSnapshot).toMatchObject({
+      id: created.trademarkCase.id,
+      markName: 'MarkProof',
+      ownerName: 'Example GmbH',
+      registrationNumber: '302026000001',
+      jurisdiction: 'DPMA',
+      usePeriodFrom: '2021-01-01',
+      usePeriodTo: '2026-01-01'
+    });
+    expect(deleteEntry?.details.goodsServices).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ niceClass: 9, description: 'Software' }),
+        expect.objectContaining({ niceClass: 42, description: 'Services' }),
+        expect.objectContaining({ niceClass: 35, description: 'Advertising' })
+      ])
+    );
     expect(deleteEntry?.details.evidenceItemsCount).toBe(1);
     expect(deleteEntry?.details.deletedEvidenceItems).toEqual([
       {

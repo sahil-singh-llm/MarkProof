@@ -1,6 +1,7 @@
 import type {
   CreateTrademarkCaseRecordInput,
   DeleteTrademarkCaseResult,
+  GoodsService,
   TrademarkCase,
   TrademarkCaseRecord,
   UpdateTrademarkCaseRecordInput
@@ -12,6 +13,37 @@ import type { SqliteDatabase } from '../db/database';
 import { EvidenceRepository } from '../db/evidence.repository';
 
 const MAX_AUDITED_DELETED_EVIDENCE_ITEMS = 100;
+
+type CaseAuditSnapshot = {
+  id: string;
+  markName: string;
+  ownerName: string;
+  registrationNumber: string;
+  jurisdiction: TrademarkCase['jurisdiction'];
+  usePeriodFrom: string;
+  usePeriodTo: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type GoodsServiceAuditSnapshot = {
+  id: string;
+  caseId: string;
+  niceClass: number | null;
+  description: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type GoodsServicesAuditDiff = {
+  added: GoodsServiceAuditSnapshot[];
+  removed: GoodsServiceAuditSnapshot[];
+  updated: Array<{
+    previous: GoodsServiceAuditSnapshot;
+    current: GoodsServiceAuditSnapshot;
+  }>;
+};
 
 export class CaseService {
   private readonly auditRepository: AuditRepository;
@@ -48,6 +80,8 @@ export class CaseService {
         entityType: 'case',
         entityId: trademarkCase.id,
         details: {
+          caseSnapshot: this.toCaseAuditSnapshot(trademarkCase),
+          goodsServices: goodsServices.map((item) => this.toGoodsServiceAuditSnapshot(item)),
           markName: trademarkCase.markName,
           registrationNumber: trademarkCase.registrationNumber,
           goodsServicesCount: goodsServices.length
@@ -71,6 +105,7 @@ export class CaseService {
         return null;
       }
 
+      const previousGoodsServices = this.casesRepository.listGoodsServices(id);
       const trademarkCase = this.casesRepository.update(id, input);
 
       if (!trademarkCase) {
@@ -85,6 +120,13 @@ export class CaseService {
         entityType: 'case',
         entityId: id,
         details: {
+          previousCaseSnapshot: this.toCaseAuditSnapshot(existing),
+          caseSnapshot: this.toCaseAuditSnapshot(trademarkCase),
+          previousGoodsServices: previousGoodsServices.map((item) =>
+            this.toGoodsServiceAuditSnapshot(item)
+          ),
+          goodsServices: goodsServices.map((item) => this.toGoodsServiceAuditSnapshot(item)),
+          goodsServicesDiff: this.diffGoodsServices(previousGoodsServices, goodsServices),
           previousMarkName: existing.markName,
           markName: trademarkCase.markName,
           previousOwnerName: existing.ownerName,
@@ -118,7 +160,8 @@ export class CaseService {
         return { deleted: false };
       }
 
-      const goodsServicesCount = this.casesRepository.listGoodsServices(id).length;
+      const goodsServices = this.casesRepository.listGoodsServices(id);
+      const goodsServicesCount = goodsServices.length;
       const evidenceItems = this.evidenceRepository.listByCase(id);
       const deleted = this.casesRepository.delete(id);
 
@@ -129,6 +172,8 @@ export class CaseService {
           entityType: 'case',
           entityId: id,
           details: {
+            caseSnapshot: this.toCaseAuditSnapshot(existing),
+            goodsServices: goodsServices.map((item) => this.toGoodsServiceAuditSnapshot(item)),
             markName: existing.markName,
             registrationNumber: existing.registrationNumber,
             goodsServicesCount,
@@ -139,8 +184,7 @@ export class CaseService {
                 id: evidence.id,
                 fileHash: evidence.fileHash
               })),
-            deletedEvidenceItemsTruncated:
-              evidenceItems.length > MAX_AUDITED_DELETED_EVIDENCE_ITEMS
+            deletedEvidenceItemsTruncated: evidenceItems.length > MAX_AUDITED_DELETED_EVIDENCE_ITEMS
           }
         });
       }
@@ -156,5 +200,70 @@ export class CaseService {
       trademarkCase,
       goodsServices: this.casesRepository.listGoodsServices(trademarkCase.id)
     };
+  }
+
+  private toCaseAuditSnapshot(trademarkCase: TrademarkCase): CaseAuditSnapshot {
+    return {
+      id: trademarkCase.id,
+      markName: trademarkCase.markName,
+      ownerName: trademarkCase.ownerName,
+      registrationNumber: trademarkCase.registrationNumber,
+      jurisdiction: trademarkCase.jurisdiction,
+      usePeriodFrom: trademarkCase.usePeriodFrom,
+      usePeriodTo: trademarkCase.usePeriodTo,
+      createdAt: trademarkCase.createdAt,
+      updatedAt: trademarkCase.updatedAt
+    };
+  }
+
+  private toGoodsServiceAuditSnapshot(goodsService: GoodsService): GoodsServiceAuditSnapshot {
+    return {
+      id: goodsService.id,
+      caseId: goodsService.caseId,
+      niceClass: goodsService.niceClass,
+      description: goodsService.description,
+      sortOrder: goodsService.sortOrder,
+      createdAt: goodsService.createdAt,
+      updatedAt: goodsService.updatedAt
+    };
+  }
+
+  private diffGoodsServices(
+    previous: readonly GoodsService[],
+    current: readonly GoodsService[]
+  ): GoodsServicesAuditDiff {
+    const previousById = new Map(previous.map((item) => [item.id, item]));
+    const currentById = new Map(current.map((item) => [item.id, item]));
+
+    return {
+      added: current
+        .filter((item) => !previousById.has(item.id))
+        .map((item) => this.toGoodsServiceAuditSnapshot(item)),
+      removed: previous
+        .filter((item) => !currentById.has(item.id))
+        .map((item) => this.toGoodsServiceAuditSnapshot(item)),
+      updated: previous.flatMap((previousItem) => {
+        const currentItem = currentById.get(previousItem.id);
+
+        if (!currentItem || !this.hasGoodsServiceChanged(previousItem, currentItem)) {
+          return [];
+        }
+
+        return [
+          {
+            previous: this.toGoodsServiceAuditSnapshot(previousItem),
+            current: this.toGoodsServiceAuditSnapshot(currentItem)
+          }
+        ];
+      })
+    };
+  }
+
+  private hasGoodsServiceChanged(previous: GoodsService, current: GoodsService): boolean {
+    return (
+      previous.niceClass !== current.niceClass ||
+      previous.description !== current.description ||
+      previous.sortOrder !== current.sortOrder
+    );
   }
 }

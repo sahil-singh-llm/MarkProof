@@ -285,6 +285,10 @@ export class CasesRepository {
           throw new Error(`Goods service ${input.id} does not belong to case ${caseId}.`);
         }
 
+        if (retainedIds.has(input.id)) {
+          throw new Error(`Duplicate goods service id ${input.id} in replace input.`);
+        }
+
         retainedIds.add(input.id);
       }
 
